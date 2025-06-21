@@ -458,16 +458,15 @@
                     <div class="config-grid">
                         <div class="config-input-group">
                             <label for="frequency-input">Sampling Frequency (Hz)</label>
-                            <input 
-                                type="number" 
-                                id="frequency-input" 
-                                class="config-input" 
-                                placeholder="100"
-                                min="1" 
-                                max="1000"
-                                step="1"
-                            >
-                            <div class="config-range">Range: 1 - 1000 Hz</div>
+                            <select id="frequency-input" class="config-input">
+                                <option value="250">250 Hz</option>
+                                <option value="500">500 Hz</option>
+                                <option value="1000" selected>1000 Hz</option>
+                                <option value="2000">2000 Hz</option>
+                                <option value="4000">4000 Hz</option>
+                                <option value="8000">8000 Hz</option>
+                            </select>
+                            <div class="config-range">Available: 250, 500, 1000, 2000, 4000, 8000 Hz</div>
                         </div>
                         <div class="config-input-group">
                             <label for="refresh-input">Refresh Rate (Hz)</label>
@@ -1162,16 +1161,18 @@
             // Update status at configured interval
             setInterval(updateStatus, statusUpdateInterval);
             
-            // Handle Enter key in inputs
-            document.getElementById('frequency-input').addEventListener('keypress', function(e) {
+            // Handle Enter key in refresh rate input
+            document.getElementById('refresh-input').addEventListener('keypress', function(e) {
                 if (e.key === 'Enter' && !isRunning && serialConnected) {
                     configureSensor();
                 }
             });
             
-            document.getElementById('refresh-input').addEventListener('keypress', function(e) {
-                if (e.key === 'Enter' && !isRunning && serialConnected) {
-                    configureSensor();
+            // Handle change event for frequency dropdown
+            document.getElementById('frequency-input').addEventListener('change', function(e) {
+                if (!isRunning && serialConnected) {
+                    // Optionally auto-configure when frequency changes
+                    // configureSensor();
                 }
             });
         });

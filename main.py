@@ -416,14 +416,6 @@ def process_sensor_sample(sample_data: bytes, timestamp: float):
                 plot_data['filtered_leads'][lead_name] = plot_data['filtered_leads'][lead_name][-max_data_points:]
             plot_data['raw_samples'] = plot_data['raw_samples'][-max_data_points:]
         
-        # Print processed data for debugging (every 100th sample to avoid spam)
-        if samples_received % 100 == 0:
-            print(f"Sample #{samples_received} at {timestamp:.3f}s:")
-            print(f"  Lead1: {lead_data['Lead1']:.3f} mV -> {filtered_leads['Lead1']:.3f} mV (filtered)")
-            print(f"  Lead2: {lead_data['Lead2']:.3f} mV -> {filtered_leads['Lead2']:.3f} mV (filtered)")
-            print(f"  V1: {lead_data['V1']:.3f} mV -> {filtered_leads['V1']:.3f} mV (filtered)")
-            print(f"  Lead3: {derived_leads['Lead3']:.3f} mV -> {filtered_leads['Lead3']:.3f} mV (filtered)")
-        
     except Exception as e:
         print(f"Error processing sample #{samples_received}: {e}")
         # Print raw data for debugging
@@ -670,7 +662,9 @@ async def get_configuration():
         "min_refresh_rate": MIN_REFRESH_RATE,
         "max_refresh_rate": MAX_REFRESH_RATE,
         "default_frequency": DEFAULT_FREQUENCY,
-        "default_refresh_rate": DEFAULT_REFRESH_RATE
+        "default_refresh_rate": DEFAULT_REFRESH_RATE,
+        "sampling_frequency_options": SAMPLING_FREQUENCY_OPTIONS,
+        "default_sampling_frequency": DEFAULT_SAMPLING_FREQ
     }
 
 @app.get("/plot-data")
@@ -728,6 +722,7 @@ async def startup_event():
     print(f"Default frequency: {DEFAULT_FREQUENCY} Hz")
     print(f"Default refresh rate: {DEFAULT_REFRESH_RATE} Hz")
     print(f"Default sampling frequency: {DEFAULT_SAMPLING_FREQ} Hz")
+    print(f"Available sampling frequencies: {SAMPLING_FREQUENCY_OPTIONS} Hz")
     print(f"Sample size: {SAMPLE_SIZE} bytes")
     print(f"ECG leads: {ECG_LEADS}")
     print(f"Derived leads: {DERIVED_LEADS}")

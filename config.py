@@ -23,7 +23,7 @@ CMD_SET_RECORDING_TIME = 0x40 # Set Recording Time
 CMD_START_DAQ = 0x50          # Start Data Acquisition
 
 # Command Parameters
-DEFAULT_SAMPLING_FREQ = 1000  # Default 1 kHz if not set
+DEFAULT_SAMPLING_FREQ = 1000  # Default sampling frequency from options
 CONTINUOUS_RECORDING = 0      # 0 = continuous recording
 FREE_RUNNING = 0x00           # Free running mode (not external trigger)
 EXTERNAL_TRIGGER = 0xAA       # Wait for external trigger
@@ -35,6 +35,9 @@ MIN_FREQUENCY = 1             # Minimum allowed frequency
 MAX_FREQUENCY = 1000          # Maximum allowed frequency
 MIN_REFRESH_RATE = 1          # Minimum allowed refresh rate
 MAX_REFRESH_RATE = 60         # Maximum allowed refresh rate
+
+# Sampling Frequency Options (Hz)
+SAMPLING_FREQUENCY_OPTIONS = [250, 500, 1000, 2000, 4000, 8000]
 
 # WebSocket Settings
 WEBSOCKET_RECONNECT_ATTEMPTS = 5  # Maximum reconnection attempts
@@ -61,4 +64,4 @@ elif platform.system() == "Darwin":
     SERIAL_PORT = "/dev/tty.usbserial-0001"  # Change to your port
 else:
     # Linux/Raspberry Pi (default)
-    SERIAL_PORT = "/dev/ttyUSB0"  # Change to your port 
+    SERIAL_PORT = "/dev/ttyACM0"  # Change to your port 
