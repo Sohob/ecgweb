@@ -1,0 +1,1180 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ECG Sensor Control</title>
+    <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+            padding: 40px;
+            max-width: 1400px;
+            width: 100%;
+            margin: 0 auto;
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 40px;
+        }
+
+        .header h1 {
+            color: #333;
+            font-size: 2.5rem;
+            margin-bottom: 10px;
+            font-weight: 300;
+        }
+
+        .header p {
+            color: #666;
+            font-size: 1.1rem;
+        }
+
+        .main-content {
+            display: grid;
+            grid-template-columns: 1fr 3fr;
+            gap: 30px;
+            margin-bottom: 30px;
+        }
+
+        .control-section {
+            display: flex;
+            flex-direction: column;
+            gap: 30px;
+        }
+
+        .connection-alert {
+            background: linear-gradient(135deg, #dc3545 0%, #fd7e14 100%);
+            border-radius: 15px;
+            padding: 20px;
+            color: white;
+            text-align: center;
+            box-shadow: 0 8px 25px rgba(220, 53, 69, 0.3);
+            margin-bottom: 20px;
+        }
+
+        .connection-alert.connected {
+            background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
+            box-shadow: 0 8px 25px rgba(40, 167, 69, 0.3);
+        }
+
+        .connection-alert h3 {
+            margin-bottom: 10px;
+            font-size: 1.2rem;
+            font-weight: 600;
+        }
+
+        .connection-alert p {
+            font-size: 0.9rem;
+            opacity: 0.9;
+        }
+
+        .status-panel {
+            background: #f8f9fa;
+            border-radius: 15px;
+            padding: 20px;
+            border-left: 4px solid #007bff;
+        }
+
+        .status-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+
+        .status-item:last-child {
+            margin-bottom: 0;
+        }
+
+        .status-label {
+            font-weight: 600;
+            color: #555;
+        }
+
+        .status-value {
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 0.9rem;
+            font-weight: 500;
+        }
+
+        .status-connected {
+            background: #d4edda;
+            color: #155724;
+        }
+
+        .status-disconnected {
+            background: #f8d7da;
+            color: #721c24;
+        }
+
+        .status-running {
+            background: #fff3cd;
+            color: #856404;
+        }
+
+        .status-stopped {
+            background: #f8d7da;
+            color: #721c24;
+        }
+
+        .config-panel {
+            background: linear-gradient(135deg, #17a2b8 0%, #20c997 100%);
+            border-radius: 15px;
+            padding: 25px;
+            color: white;
+            box-shadow: 0 8px 25px rgba(23, 162, 184, 0.3);
+        }
+
+        .config-panel h3 {
+            margin-bottom: 20px;
+            font-size: 1.3rem;
+            font-weight: 600;
+        }
+
+        .config-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            margin-bottom: 20px;
+        }
+
+        .config-input-group {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .config-input-group label {
+            font-weight: 600;
+            font-size: 0.95rem;
+        }
+
+        .config-input {
+            padding: 12px 15px;
+            border: none;
+            border-radius: 10px;
+            font-size: 1.1rem;
+            font-weight: 600;
+            background: rgba(255, 255, 255, 0.9);
+            color: #333;
+            transition: all 0.3s ease;
+        }
+
+        .config-input:focus {
+            outline: none;
+            background: white;
+            box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.3);
+        }
+
+        .config-input:disabled {
+            background: rgba(255, 255, 255, 0.5);
+            color: #666;
+            cursor: not-allowed;
+        }
+
+        .config-input.error {
+            background: rgba(220, 53, 69, 0.9);
+            color: white;
+        }
+
+        .config-range {
+            font-size: 0.8rem;
+            opacity: 0.8;
+        }
+
+        .control-panel {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+            gap: 15px;
+        }
+
+        .control-btn {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 15px;
+            border-radius: 15px;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3);
+        }
+
+        .control-btn:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(102, 126, 234, 0.4);
+        }
+
+        .control-btn:active:not(:disabled) {
+            transform: translateY(0);
+        }
+
+        .control-btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .control-btn.start {
+            background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
+            box-shadow: 0 4px 15px rgba(40, 167, 69, 0.3);
+        }
+
+        .control-btn.start:hover:not(:disabled) {
+            box-shadow: 0 8px 25px rgba(40, 167, 69, 0.4);
+        }
+
+        .control-btn.stop {
+            background: linear-gradient(135deg, #dc3545 0%, #fd7e14 100%);
+            box-shadow: 0 4px 15px rgba(220, 53, 69, 0.3);
+        }
+
+        .control-btn.stop:hover:not(:disabled) {
+            box-shadow: 0 8px 25px rgba(220, 53, 69, 0.4);
+        }
+
+        .control-btn.record {
+            background: linear-gradient(135deg, #6f42c1 0%, #e83e8c 100%);
+            box-shadow: 0 4px 15px rgba(111, 66, 193, 0.3);
+        }
+
+        .control-btn.record:hover:not(:disabled) {
+            box-shadow: 0 8px 25px rgba(111, 66, 193, 0.4);
+        }
+
+        .control-btn.configure {
+            background: linear-gradient(135deg, #6f42c1 0%, #e83e8c 100%);
+            box-shadow: 0 4px 15px rgba(111, 66, 193, 0.3);
+        }
+
+        .control-btn.configure:hover:not(:disabled) {
+            box-shadow: 0 8px 25px rgba(111, 66, 193, 0.4);
+        }
+
+        .plot-section {
+            background: #f8f9fa;
+            border-radius: 15px;
+            padding: 20px;
+            border-left: 4px solid #28a745;
+        }
+
+        .plot-section h3 {
+            margin-bottom: 20px;
+            color: #333;
+            font-size: 1.2rem;
+            text-align: center;
+        }
+
+        .plots-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 20px;
+            margin-top: 20px;
+        }
+
+        .plot-container {
+            height: 200px;
+            width: 100%;
+            background: white;
+            border-radius: 10px;
+            overflow: hidden;
+            border: 2px solid #e9ecef;
+        }
+
+        .plot-header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 10px 15px;
+            font-weight: 600;
+            font-size: 0.9rem;
+            border-radius: 8px 8px 0 0;
+        }
+
+        .plot-header.signal1 {
+            background: linear-gradient(135deg, #1f77b4 0%, #4a90e2 100%);
+        }
+
+        .plot-header.signal2 {
+            background: linear-gradient(135deg, #ff7f0e 0%, #ffa726 100%);
+        }
+
+        .plot-header.signal3 {
+            background: linear-gradient(135deg, #2ca02c 0%, #66bb6a 100%);
+        }
+
+        .plot-header.signal4 {
+            background: linear-gradient(135deg, #6f42c1 0%, #e83e8c 100%);
+            color: white;
+        }
+
+        .plot-header.signal5 {
+            background: linear-gradient(135deg, #e83e8c 0%, #fd7e14 100%);
+            color: white;
+        }
+
+        .plot-header.signal6 {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+
+        .log-panel {
+            background: #f8f9fa;
+            border-radius: 15px;
+            padding: 20px;
+            max-height: 200px;
+            overflow-y: auto;
+        }
+
+        .log-panel h3 {
+            margin-bottom: 15px;
+            color: #333;
+            font-size: 1.2rem;
+        }
+
+        .log-entry {
+            padding: 8px 12px;
+            margin-bottom: 8px;
+            border-radius: 8px;
+            font-size: 0.9rem;
+            border-left: 3px solid #007bff;
+        }
+
+        .log-success {
+            background: #d4edda;
+            color: #155724;
+            border-left-color: #28a745;
+        }
+
+        .log-error {
+            background: #f8d7da;
+            color: #721c24;
+            border-left-color: #dc3545;
+        }
+
+        .log-info {
+            background: #d1ecf1;
+            color: #0c5460;
+            border-left-color: #17a2b8;
+        }
+
+        @media (max-width: 768px) {
+            .main-content {
+                grid-template-columns: 1fr;
+            }
+
+            .container {
+                padding: 20px;
+            }
+
+            .header h1 {
+                font-size: 2rem;
+            }
+
+            .config-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .control-panel {
+                grid-template-columns: 1fr;
+            }
+
+            .plot-container {
+                height: 150px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>ECG Sensor Control</h1>
+            <p>Real-time sensor monitoring and control interface</p>
+        </div>
+
+        <div class="main-content">
+            <div class="control-section">
+                <div class="connection-alert" id="connection-alert">
+                    <h3>🔌 Serial Connection</h3>
+                    <p id="connection-status">Checking connection...</p>
+                </div>
+
+                <div class="status-panel">
+                    <h3>System Status</h3>
+                    <div class="status-item">
+                        <span class="status-label">Serial Connection:</span>
+                        <span class="status-value" id="serial-status">Checking...</span>
+                    </div>
+                    <div class="status-item">
+                        <span class="status-label">Serial Port:</span>
+                        <span class="status-value" id="serial-port">-</span>
+                    </div>
+                    <div class="status-item">
+                        <span class="status-label">Baud Rate:</span>
+                        <span class="status-value" id="baud-rate">-</span>
+                    </div>
+                    <div class="status-item">
+                        <span class="status-label">Sensor Status:</span>
+                        <span class="status-value" id="sensor-status">Stopped</span>
+                    </div>
+                    <div class="status-item">
+                        <span class="status-label">Samples Received:</span>
+                        <span class="status-value" id="samplesReceived">0</span>
+                    </div>
+                    <div class="status-item">
+                        <span class="status-label">Buffer Size:</span>
+                        <span class="status-value" id="bufferSize">0 bytes</span>
+                    </div>
+                    <div class="status-item">
+                        <span class="status-label">FIR Filters:</span>
+                        <span class="status-value" id="firFiltersStatus">Not Initialized</span>
+                    </div>
+                    <div class="status-item">
+                        <span class="status-label">Active Connections:</span>
+                        <span class="status-value" id="active-connections">0</span>
+                    </div>
+                </div>
+
+                <div class="config-panel">
+                    <h3>⚙️ Sensor Configuration</h3>
+                    <div class="config-grid">
+                        <div class="config-input-group">
+                            <label for="frequency-input">Sampling Frequency (Hz)</label>
+                            <input 
+                                type="number" 
+                                id="frequency-input" 
+                                class="config-input" 
+                                placeholder="100"
+                                min="1" 
+                                max="1000"
+                                step="1"
+                            >
+                            <div class="config-range">Range: 1 - 1000 Hz</div>
+                        </div>
+                        <div class="config-input-group">
+                            <label for="refresh-input">Refresh Rate (Hz)</label>
+                            <input 
+                                type="number" 
+                                id="refresh-input" 
+                                class="config-input" 
+                                placeholder="10"
+                                min="1" 
+                                max="60"
+                                step="1"
+                            >
+                            <div class="config-range">Range: 1 - 60 Hz</div>
+                        </div>
+                    </div>
+                    <div style="text-align: center; font-size: 0.9rem; opacity: 0.8;">
+                        Configure settings before starting. Settings are locked while sensor is running.
+                    </div>
+                    <button class="control-btn configure" id="configure-btn" onclick="configureSensor()" style="margin-top: 15px; width: 100%;">
+                        ⚙️ Configure Sensor
+                    </button>
+                </div>
+
+                <div class="control-panel">
+                    <button class="control-btn start" id="start-btn" onclick="sendCommand('start')">
+                        ▶ Start
+                    </button>
+                    <button class="control-btn stop" id="stop-btn" onclick="sendCommand('stop')">
+                        ⏹ Stop
+                    </button>
+                    <button class="control-btn record" id="record-btn" onclick="sendCommand('record')">
+                        🔴 Record
+                    </button>
+                </div>
+            </div>
+
+            <div class="plot-section">
+                <h3>📊 Real-Time ECG Signals (FIR Filtered)</h3>
+                <div class="plots-grid">
+                    <div class="plot-container">
+                        <div class="plot-header signal1">Lead I (Filtered)</div>
+                        <div id="plot1" style="width:100%; height:150px;"></div>
+                    </div>
+                    <div class="plot-container">
+                        <div class="plot-header signal2">Lead II (Filtered)</div>
+                        <div id="plot2" style="width:100%; height:150px;"></div>
+                    </div>
+                    <div class="plot-container">
+                        <div class="plot-header signal3">V1 (Filtered)</div>
+                        <div id="plot3" style="width:100%; height:150px;"></div>
+                    </div>
+                    <div class="plot-container">
+                        <div class="plot-header signal4">Lead III (Filtered)</div>
+                        <div id="plot4" style="width:100%; height:150px;"></div>
+                    </div>
+                    <div class="plot-container">
+                        <div class="plot-header signal5">aVL (Filtered)</div>
+                        <div id="plot5" style="width:100%; height:150px;"></div>
+                    </div>
+                    <div class="plot-container">
+                        <div class="plot-header signal6">aVF (Filtered)</div>
+                        <div id="plot6" style="width:100%; height:150px;"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="log-panel">
+            <h3>Command Log</h3>
+            <div id="log-container">
+                <div class="log-entry log-info">System initialized. Configure settings and press Start.</div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let ws = null;
+        let reconnectAttempts = 0;
+        const maxReconnectAttempts = 5;
+        const logMaxEntries = 50;
+        const statusUpdateInterval = 5000;
+        let isRunning = false;
+        let currentFrequency = 100;
+        let currentRefreshRate = 10;
+        let serialConnected = false;
+
+        // Plot data storage for each signal
+        let plotData = {
+            timestamps: [],
+            signal1: [],
+            signal2: [],
+            signal3: [],
+            signal4: [],
+            signal5: [],
+            signal6: []
+        };
+
+        // Initialize individual Plotly plots
+        function initPlots() {
+            const plotConfig = {
+                responsive: true,
+                displayModeBar: false
+            };
+
+            // Signal 1 Plot
+            const data1 = [{
+                y: [],
+                name: 'Lead I (Filtered)',
+                type: 'scatter',
+                mode: 'lines',
+                line: { color: '#1f77b4', width: 2 },
+                showlegend: false
+            }];
+
+            const layout1 = {
+                height: 150,
+                margin: { l: 40, r: 20, t: 20, b: 30 },
+                xaxis: {
+                    title: 'Time (s)',
+                    showgrid: true,
+                    gridcolor: '#e1e5e9',
+                    titlefont: { size: 10 },
+                    tickfont: { size: 9 }
+                },
+                yaxis: {
+                    title: 'Amplitude',
+                    showgrid: true,
+                    gridcolor: '#e1e5e9',
+                    titlefont: { size: 10 },
+                    tickfont: { size: 9 }
+                },
+                plot_bgcolor: 'white',
+                paper_bgcolor: 'white',
+                font: { size: 10 }
+            };
+
+            // Signal 2 Plot
+            const data2 = [{
+                y: [],
+                name: 'Lead II (Filtered)',
+                type: 'scatter',
+                mode: 'lines',
+                line: { color: '#ff7f0e', width: 2 },
+                showlegend: false
+            }];
+
+            const layout2 = {
+                height: 150,
+                margin: { l: 40, r: 20, t: 20, b: 30 },
+                xaxis: {
+                    title: 'Time (s)',
+                    showgrid: true,
+                    gridcolor: '#e1e5e9',
+                    titlefont: { size: 10 },
+                    tickfont: { size: 9 }
+                },
+                yaxis: {
+                    title: 'Amplitude',
+                    showgrid: true,
+                    gridcolor: '#e1e5e9',
+                    titlefont: { size: 10 },
+                    tickfont: { size: 9 }
+                },
+                plot_bgcolor: 'white',
+                paper_bgcolor: 'white',
+                font: { size: 10 }
+            };
+
+            // Signal 3 Plot
+            const data3 = [{
+                y: [],
+                name: 'V1 (Filtered)',
+                type: 'scatter',
+                mode: 'lines',
+                line: { color: '#2ca02c', width: 2 },
+                showlegend: false
+            }];
+
+            const layout3 = {
+                height: 150,
+                margin: { l: 40, r: 20, t: 20, b: 30 },
+                xaxis: {
+                    title: 'Time (s)',
+                    showgrid: true,
+                    gridcolor: '#e1e5e9',
+                    titlefont: { size: 10 },
+                    tickfont: { size: 9 }
+                },
+                yaxis: {
+                    title: 'Amplitude',
+                    showgrid: true,
+                    gridcolor: '#e1e5e9',
+                    titlefont: { size: 10 },
+                    tickfont: { size: 9 }
+                },
+                plot_bgcolor: 'white',
+                paper_bgcolor: 'white',
+                font: { size: 10 }
+            };
+
+            // Signal 4 Plot
+            const data4 = [{
+                y: [],
+                name: 'Lead III (Filtered)',
+                type: 'scatter',
+                mode: 'lines',
+                line: { color: '#6f42c1', width: 2 },
+                showlegend: false
+            }];
+
+            const layout4 = {
+                height: 150,
+                margin: { l: 40, r: 20, t: 20, b: 30 },
+                xaxis: {
+                    title: 'Time (s)',
+                    showgrid: true,
+                    gridcolor: '#e1e5e9',
+                    titlefont: { size: 10 },
+                    tickfont: { size: 9 }
+                },
+                yaxis: {
+                    title: 'Amplitude',
+                    showgrid: true,
+                    gridcolor: '#e1e5e9',
+                    titlefont: { size: 10 },
+                    tickfont: { size: 9 }
+                },
+                plot_bgcolor: 'white',
+                paper_bgcolor: 'white',
+                font: { size: 10 }
+            };
+
+            // Signal 5 Plot
+            const data5 = [{
+                y: [],
+                name: 'aVL (Filtered)',
+                type: 'scatter',
+                mode: 'lines',
+                line: { color: '#e83e8c', width: 2 },
+                showlegend: false
+            }];
+
+            const layout5 = {
+                height: 150,
+                margin: { l: 40, r: 20, t: 20, b: 30 },
+                xaxis: {
+                    title: 'Time (s)',
+                    showgrid: true,
+                    gridcolor: '#e1e5e9',
+                    titlefont: { size: 10 },
+                    tickfont: { size: 9 }
+                },
+                yaxis: {
+                    title: 'Amplitude',
+                    showgrid: true,
+                    gridcolor: '#e1e5e9',
+                    titlefont: { size: 10 },
+                    tickfont: { size: 9 }
+                },
+                plot_bgcolor: 'white',
+                paper_bgcolor: 'white',
+                font: { size: 10 }
+            };
+
+            // Signal 6 Plot
+            const data6 = [{
+                y: [],
+                name: 'aVF (Filtered)',
+                type: 'scatter',
+                mode: 'lines',
+                line: { color: '#667eea', width: 2 },
+                showlegend: false
+            }];
+
+            const layout6 = {
+                height: 150,
+                margin: { l: 40, r: 20, t: 20, b: 30 },
+                xaxis: {
+                    title: 'Time (s)',
+                    showgrid: true,
+                    gridcolor: '#e1e5e9',
+                    titlefont: { size: 10 },
+                    tickfont: { size: 9 }
+                },
+                yaxis: {
+                    title: 'Amplitude',
+                    showgrid: true,
+                    gridcolor: '#e1e5e9',
+                    titlefont: { size: 10 },
+                    tickfont: { size: 9 }
+                },
+                plot_bgcolor: 'white',
+                paper_bgcolor: 'white',
+                font: { size: 10 }
+            };
+
+            Plotly.newPlot('plot1', data1, layout1, plotConfig);
+            Plotly.newPlot('plot2', data2, layout2, plotConfig);
+            Plotly.newPlot('plot3', data3, layout3, plotConfig);
+            Plotly.newPlot('plot4', data4, layout4, plotConfig);
+            Plotly.newPlot('plot5', data5, layout5, plotConfig);
+            Plotly.newPlot('plot6', data6, layout6, plotConfig);
+        }
+
+        // Update individual plots with new data
+        function updatePlots(timestamp, signal1, signal2, signal3, signal4, signal5, signal6) {
+            plotData.timestamps.push(timestamp);
+            plotData.signal1.push(signal1);
+            plotData.signal2.push(signal2);
+            plotData.signal3.push(signal3);
+            plotData.signal4.push(signal4);
+            plotData.signal5.push(signal5);
+            plotData.signal6.push(signal6);
+
+            // Keep only last 150 points for smooth plotting
+            const maxPoints = 150;
+            if (plotData.timestamps.length > maxPoints) {
+                plotData.timestamps = plotData.timestamps.slice(-maxPoints);
+                plotData.signal1 = plotData.signal1.slice(-maxPoints);
+                plotData.signal2 = plotData.signal2.slice(-maxPoints);
+                plotData.signal3 = plotData.signal3.slice(-maxPoints);
+                plotData.signal4 = plotData.signal4.slice(-maxPoints);
+                plotData.signal5 = plotData.signal5.slice(-maxPoints);
+                plotData.signal6 = plotData.signal6.slice(-maxPoints);
+            }
+
+            // Convert timestamps to relative time for better display
+            const relativeTime = plotData.timestamps.map(t => t - plotData.timestamps[0]);
+
+            // Update each plot individually
+            Plotly.restyle('plot1', {
+                x: [relativeTime],
+                y: [plotData.signal1]
+            });
+
+            Plotly.restyle('plot2', {
+                x: [relativeTime],
+                y: [plotData.signal2]
+            });
+
+            Plotly.restyle('plot3', {
+                x: [relativeTime],
+                y: [plotData.signal3]
+            });
+
+            Plotly.restyle('plot4', {
+                x: [relativeTime],
+                y: [plotData.signal4]
+            });
+
+            Plotly.restyle('plot5', {
+                x: [relativeTime],
+                y: [plotData.signal5]
+            });
+
+            Plotly.restyle('plot6', {
+                x: [relativeTime],
+                y: [plotData.signal6]
+            });
+        }
+
+        // Update connection status display
+        function updateConnectionStatus(connected) {
+            serialConnected = connected;
+            const alert = document.getElementById('connection-alert');
+            const status = document.getElementById('connection-status');
+            
+            if (connected) {
+                alert.className = 'connection-alert connected';
+                status.textContent = '✅ Connected to sensor';
+            } else {
+                alert.className = 'connection-alert';
+                status.textContent = '❌ Not connected to sensor';
+            }
+        }
+
+        // Initialize WebSocket connection
+        function initWebSocket() {
+            const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+            const wsUrl = `${protocol}//${window.location.host}/ws`;
+            
+            ws = new WebSocket(wsUrl);
+            
+            ws.onopen = function() {
+                addLog('WebSocket connected', 'info');
+                reconnectAttempts = 0;
+            };
+            
+            ws.onmessage = function(event) {
+                try {
+                    const data = JSON.parse(event.data);
+                    handleWebSocketMessage(data);
+                } catch (e) {
+                    addLog(`Message: ${event.data}`, 'info');
+                }
+            };
+            
+            ws.onclose = function() {
+                addLog('WebSocket disconnected', 'error');
+                if (reconnectAttempts < maxReconnectAttempts) {
+                    reconnectAttempts++;
+                    setTimeout(initWebSocket, 2000);
+                }
+            };
+            
+            ws.onerror = function(error) {
+                addLog('WebSocket error', 'error');
+            };
+        }
+
+        // Handle WebSocket messages
+        function handleWebSocketMessage(data) {
+            switch(data.type) {
+                case 'plot_data':
+                    // Map ECG data to plots
+                    const lead1 = data.signal1 || 0;
+                    const lead2 = data.signal2 || 0;
+                    const v1 = data.signal3 || 0;
+                    const lead3 = data.lead3 || 0;
+                    const avl = data.avl || 0;
+                    const avf = data.avf || 0;
+                    
+                    updatePlots(data.timestamp, lead1, lead2, v1, lead3, avl, avf);
+                    
+                    if (data.samples_received !== undefined) {
+                        document.getElementById('samplesReceived').textContent = data.samples_received;
+                    }
+                    if (data.buffer_size !== undefined) {
+                        document.getElementById('bufferSize').textContent = `${data.buffer_size} bytes`;
+                    }
+                    break;
+                    
+                case 'command_response':
+                    handleCommandResponse(data);
+                    break;
+                    
+                case 'config_update':
+                    updateConfiguration(data);
+                    break;
+                    
+                default:
+                    console.log('Unknown message type:', data.type);
+            }
+        }
+
+        // Handle command responses from WebSocket
+        function handleCommandResponse(data) {
+            const status = data.result.status;
+            const message = data.result.message;
+            let logMessage = `${data.command.toUpperCase()}: ${message}`;
+            
+            // Add frequency and refresh rate info for start command
+            if (data.command === 'start' && data.frequency && data.refresh_rate) {
+                logMessage += ` (${data.frequency} Hz, ${data.refresh_rate} Hz refresh)`;
+            }
+            
+            addLog(logMessage, status);
+            
+            // Update running state
+            if (data.is_running !== undefined) {
+                isRunning = data.is_running;
+                updateUIState();
+            }
+        }
+
+        // Update configuration from WebSocket
+        function updateConfiguration(data) {
+            currentFrequency = data.frequency;
+            currentRefreshRate = data.refresh_rate;
+            updateConfigDisplay();
+            addLog(`Configuration updated: ${data.frequency} Hz, ${data.refresh_rate} Hz refresh`, 'success');
+        }
+
+        // Configure sensor settings
+        async function configureSensor() {
+            if (!serialConnected) {
+                addLog('Cannot configure: Serial connection not available', 'error');
+                return;
+            }
+            
+            if (isRunning) {
+                addLog('Cannot configure: Sensor is running', 'error');
+                return;
+            }
+            
+            const frequency = parseInt(document.getElementById('frequency-input').value);
+            const refreshRate = parseInt(document.getElementById('refresh-input').value);
+            
+            try {
+                const response = await fetch('/configure', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        frequency: frequency,
+                        refresh_rate: refreshRate
+                    })
+                });
+                
+                const result = await response.json();
+                
+                if (result.status === 'success') {
+                    currentFrequency = frequency;
+                    currentRefreshRate = refreshRate;
+                    updateConfigDisplay();
+                    addLog(`Configuration applied: ${frequency} Hz, ${refreshRate} Hz refresh`, 'success');
+                } else {
+                    addLog(`Configuration error: ${result.detail}`, 'error');
+                }
+            } catch (error) {
+                addLog(`Configuration error: ${error.message}`, 'error');
+            }
+        }
+
+        // Update UI state based on running status and connection
+        function updateUIState() {
+            const frequencyInput = document.getElementById('frequency-input');
+            const refreshInput = document.getElementById('refresh-input');
+            const startBtn = document.getElementById('start-btn');
+            const stopBtn = document.getElementById('stop-btn');
+            const recordBtn = document.getElementById('record-btn');
+            const configureBtn = document.getElementById('configure-btn');
+            const sensorStatus = document.getElementById('sensor-status');
+            
+            // Disable all controls if not connected
+            const controlsDisabled = !serialConnected;
+            
+            if (isRunning) {
+                // Lock configuration inputs
+                frequencyInput.disabled = true;
+                refreshInput.disabled = true;
+                configureBtn.disabled = true;
+                
+                // Update button states
+                startBtn.disabled = true;
+                stopBtn.disabled = controlsDisabled;
+                recordBtn.disabled = controlsDisabled;
+                
+                // Update status
+                sensorStatus.textContent = 'Running';
+                sensorStatus.className = 'status-value status-running';
+                
+                if (!controlsDisabled) {
+                    addLog('Sensor is now running. Configuration is locked.', 'info');
+                }
+            } else {
+                // Unlock configuration inputs
+                frequencyInput.disabled = controlsDisabled;
+                refreshInput.disabled = controlsDisabled;
+                configureBtn.disabled = controlsDisabled;
+                
+                // Update button states
+                startBtn.disabled = controlsDisabled;
+                stopBtn.disabled = true;
+                recordBtn.disabled = controlsDisabled;
+                
+                // Update status
+                sensorStatus.textContent = 'Stopped';
+                sensorStatus.className = 'status-value status-stopped';
+                
+                if (!controlsDisabled) {
+                    addLog('Sensor stopped. Configuration is now unlocked.', 'info');
+                }
+            }
+        }
+
+        // Update configuration display
+        function updateConfigDisplay() {
+            document.getElementById('frequency-input').value = currentFrequency;
+            document.getElementById('refresh-input').value = currentRefreshRate;
+        }
+
+        // Send command to server
+        async function sendCommand(command) {
+            if (!serialConnected) {
+                addLog('Cannot send command: Serial connection not available', 'error');
+                return;
+            }
+            
+            try {
+                const response = await fetch(`/command/${command}`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    }
+                });
+                
+                const result = await response.json();
+                let logMessage = `${command.toUpperCase()}: ${result.message}`;
+                
+                // Add frequency and refresh rate info for start command
+                if (command === 'start') {
+                    logMessage += ` (${currentFrequency} Hz, ${currentRefreshRate} Hz refresh)`;
+                }
+                
+                addLog(logMessage, result.status);
+                
+                // Update status
+                updateStatus();
+                
+            } catch (error) {
+                addLog(`Error sending command: ${error.message}`, 'error');
+            }
+        }
+
+        // Add log entry
+        function addLog(message, type = 'info') {
+            const logContainer = document.getElementById('log-container');
+            const logEntry = document.createElement('div');
+            logEntry.className = `log-entry log-${type}`;
+            logEntry.textContent = `${new Date().toLocaleTimeString()}: ${message}`;
+            
+            logContainer.appendChild(logEntry);
+            logContainer.scrollTop = logContainer.scrollHeight;
+            
+            // Keep only last N entries
+            while (logContainer.children.length > logMaxEntries) {
+                logContainer.removeChild(logContainer.firstChild);
+            }
+        }
+
+        // Update system status
+        async function updateStatus() {
+            try {
+                const response = await fetch('/status');
+                const status = await response.json();
+                
+                // Update connection status
+                const connected = status.serial_status === 'connected';
+                updateConnectionStatus(connected);
+                
+                document.getElementById('serial-status').textContent = status.serial_status;
+                document.getElementById('serial-status').className = `status-value status-${status.serial_status}`;
+                document.getElementById('serial-port').textContent = status.serial_port;
+                document.getElementById('baud-rate').textContent = status.baud_rate;
+                document.getElementById('active-connections').textContent = status.active_connections;
+                
+                // Update sensor data information
+                document.getElementById('samplesReceived').textContent = status.samples_received || 0;
+                document.getElementById('bufferSize').textContent = `${status.buffer_size || 0} bytes`;
+                
+                // Update FIR filter status
+                const firStatusElement = document.getElementById('firFiltersStatus');
+                if (status.fir_filters_initialized) {
+                    firStatusElement.textContent = 'Initialized';
+                    firStatusElement.className = 'status-value status-connected';
+                } else {
+                    firStatusElement.textContent = 'Not Initialized';
+                    firStatusElement.className = 'status-value status-disconnected';
+                }
+                
+                // Update local variables
+                isRunning = status.is_running;
+                currentFrequency = status.current_frequency;
+                currentRefreshRate = status.current_refresh_rate;
+                
+                // Update UI
+                updateUIState();
+                updateConfigDisplay();
+                
+            } catch (error) {
+                addLog(`Error updating status: ${error.message}`, 'error');
+            }
+        }
+
+        // Load configuration
+        async function loadConfiguration() {
+            try {
+                const response = await fetch('/configure');
+                const config = await response.json();
+                
+                currentFrequency = config.frequency;
+                currentRefreshRate = config.refresh_rate;
+                isRunning = config.is_running;
+                
+                updateConfigDisplay();
+                updateUIState();
+                
+            } catch (error) {
+                addLog(`Error loading configuration: ${error.message}`, 'error');
+            }
+        }
+
+        // Initialize on page load
+        document.addEventListener('DOMContentLoaded', function() {
+            initPlots();
+            initWebSocket();
+            updateStatus();
+            loadConfiguration();
+            
+            // Update status at configured interval
+            setInterval(updateStatus, statusUpdateInterval);
+            
+            // Handle Enter key in inputs
+            document.getElementById('frequency-input').addEventListener('keypress', function(e) {
+                if (e.key === 'Enter' && !isRunning && serialConnected) {
+                    configureSensor();
+                }
+            });
+            
+            document.getElementById('refresh-input').addEventListener('keypress', function(e) {
+                if (e.key === 'Enter' && !isRunning && serialConnected) {
+                    configureSensor();
+                }
+            });
+        });
+    </script>
+</body>
+</html> 
