@@ -31,8 +31,8 @@ EXTERNAL_TRIGGER = 0xAA       # Wait for external trigger
 # Sensor Configuration
 DEFAULT_FREQUENCY = 100       # Default sampling frequency in Hz
 DEFAULT_REFRESH_RATE = 10     # Default refresh rate in Hz
-MIN_FREQUENCY = 1             # Minimum allowed frequency
-MAX_FREQUENCY = 1000          # Maximum allowed frequency
+MIN_FREQUENCY = 250             # Minimum allowed frequency
+MAX_FREQUENCY = 8000          # Maximum allowed frequency
 MIN_REFRESH_RATE = 1          # Minimum allowed refresh rate
 MAX_REFRESH_RATE = 60         # Maximum allowed refresh rate
 

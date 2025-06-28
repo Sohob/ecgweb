@@ -42,8 +42,9 @@ samples_received = 0
 
 # ECG Data Processing Constants (placeholders - adjust based on your hardware)
 class ECGConstants:
-    REFERENCE_VOLTAGE_MV = 2500.0  # Reference voltage in mV
-    OFFSET_LSB_STEPS = 0  # Offset in LSB steps
+    REFERENCE_VOLTAGE_MV = 2400.0  # Reference voltage in mV
+    LSB_STEPS = 16777216-1
+    OFFSET_LSB_STEPS = LSB_STEPS / 4  # Offset in LSB steps
     ADC_RESOLUTION = 24  # ADC resolution in bits
     MAX_ADC_VALUE = (2 ** 24) - 1  # Maximum ADC value
 
@@ -298,11 +299,8 @@ def extract_3byte_value(data: bytes, start_index: int) -> int:
     byte1, byte2, byte3 = data[start_index], data[start_index + 1], data[start_index + 2]
     
     # Combine bytes: MSB first, LSB last
-    value = (byte1 << 16) | (byte2 << 8) | byte3
+    value = (0x00 << 24) | (byte1 << 16) | (byte2 << 8) | byte3
     
-    # Handle 24-bit signed value (sign bit is the 23rd bit)
-    if value & 0x800000:  # If sign bit is set
-        value = value - 0x1000000  # Convert to negative value
     
     return value
 
@@ -370,7 +368,7 @@ def process_sensor_sample(sample_data: bytes, timestamp: float):
             raw_value = extract_3byte_value(sample_data, start_index)
             
             # Convert to voltage (assuming gain = 1 for now)
-            voltage = get_voltage_from_raw_data(raw_value, gain=1)
+            voltage = get_voltage_from_raw_data(raw_value, gain=6)
             lead_data[lead_name] = voltage
         
         # Calculate derived leads
