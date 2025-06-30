@@ -14,6 +14,7 @@ import os
 from config import *
 from scipy import signal
 from collections import deque
+import math
 
 app = FastAPI(title="ECG Sensor Control Server", version="1.0.0")
 
@@ -491,6 +492,51 @@ def update_plot_data(timestamp, signal1, signal2, signal3):
         plot_data['signal2'] = plot_data['signal2'][-max_data_points:]
         plot_data['signal3'] = plot_data['signal3'][-max_data_points:]
 
+def largest_triangle_three_buckets(data: list, threshold: int):
+    """
+    LTTB downsampling for a list of (x, y) tuples.
+    Returns a list of (x, y) tuples downsampled to 'threshold' points.
+    """
+    data_length = len(data)
+    if threshold >= data_length or threshold == 0:
+        return data
+    sampled = [data[0]]
+    every = (data_length - 2) / (threshold - 2)
+    a = 0
+    for i in range(threshold - 2):
+        avg_range_start = int(math.floor((i + 1) * every) + 1)
+        avg_range_end = int(math.floor((i + 2) * every) + 1)
+        avg_range_end = avg_range_end if avg_range_end < data_length else data_length
+        avg_range_length = avg_range_end - avg_range_start
+        avg_x = avg_y = 0.0
+        if avg_range_length > 0:
+            for idx in range(avg_range_start, avg_range_end):
+                avg_x += data[idx][0]
+                avg_y += data[idx][1]
+            avg_x /= avg_range_length
+            avg_y /= avg_range_length
+        else:
+            avg_x = data[a][0]
+            avg_y = data[a][1]
+        range_offs = int(math.floor((i + 0) * every) + 1)
+        range_to = int(math.floor((i + 1) * every) + 1)
+        range_to = range_to if range_to < data_length else data_length
+        max_area = -1.0
+        max_area_point = None
+        next_a = None
+        for idx in range(range_offs, range_to):
+            area = abs((data[a][0] - avg_x) * (data[idx][1] - data[a][1]) -
+                       (data[a][0] - data[idx][0]) * (avg_y - data[a][1])) * 0.5
+            if area > max_area:
+                max_area = area
+                max_area_point = data[idx]
+                next_a = idx
+        if max_area_point is not None:
+            sampled.append(max_area_point)
+            a = next_a
+    sampled.append(data[-1])
+    return sampled
+
 async def serial_reading_task():
     """Background task for reading serial data from sensor"""
     global is_running, current_sampling_freq
@@ -509,41 +555,67 @@ async def serial_reading_task():
 
 async def data_generation_task():
     """Background task for generating and broadcasting plot data"""
+    LTTB_TARGET_POINTS = 150  # Number of points to send to frontend
     while True:
         if is_running:
             # Check if we have real sensor data
             if len(plot_data['timestamps']) > 0 and len(plot_data['filtered_leads']['Lead1']) > 0:
-                # Use real sensor data (filtered)
                 latest_index = -1
-                timestamp = plot_data['timestamps'][latest_index]
-                
-                # Get latest filtered leads for plotting
-                lead1 = plot_data['filtered_leads']['Lead1'][latest_index]
-                lead2 = plot_data['filtered_leads']['Lead2'][latest_index]
-                v1 = plot_data['filtered_leads']['V1'][latest_index]
-                lead3 = plot_data['filtered_leads']['Lead3'][latest_index]
-                avl = plot_data['filtered_leads']['aVL'][latest_index]
-                avf = plot_data['filtered_leads']['aVF'][latest_index]
-                
+                # Downsample each signal for plotting
+                timestamps = plot_data['timestamps']
+                signals = {
+                    'signal1': plot_data['filtered_leads']['Lead1'],
+                    'signal2': plot_data['filtered_leads']['Lead2'],
+                    'signal3': plot_data['filtered_leads']['V1'],
+                    'lead3': plot_data['filtered_leads']['Lead3'],
+                    'avl': plot_data['filtered_leads']['aVL'],
+                    'avf': plot_data['filtered_leads']['aVF'],
+                }
+                downsampled = {}
+                for key, ydata in signals.items():
+                    if len(timestamps) == len(ydata) and len(timestamps) > 2:
+                        xy = list(zip(timestamps, ydata))
+                        lttb = largest_triangle_three_buckets(xy, LTTB_TARGET_POINTS)
+                        # Unzip
+                        _, y_down = zip(*lttb)
+                        downsampled[key] = list(y_down)
+                    else:
+                        downsampled[key] = ydata[-LTTB_TARGET_POINTS:] if len(ydata) > LTTB_TARGET_POINTS else ydata
+                # Downsample timestamps for x-axis
+                if len(timestamps) > 2:
+                    xy = list(zip(timestamps, signals['signal1']))
+                    lttb = largest_triangle_three_buckets(xy, LTTB_TARGET_POINTS)
+                    x_down, _ = zip(*lttb)
+                    downsampled_timestamps = list(x_down)
+                else:
+                    downsampled_timestamps = timestamps[-LTTB_TARGET_POINTS:] if len(timestamps) > LTTB_TARGET_POINTS else timestamps
+                # Use last available values for meta info
+                timestamp = downsampled_timestamps[-1] if downsampled_timestamps else 0
                 plot_update = {
                     "type": "plot_data",
                     "timestamp": timestamp,
-                    "signal1": float(lead1),
-                    "signal2": float(lead2),
-                    "signal3": float(v1),
-                    "lead3": float(lead3),
-                    "avl": float(avl),
-                    "avf": float(avf),
+                    "signal1": downsampled['signal1'][-1] if downsampled['signal1'] else 0,
+                    "signal2": downsampled['signal2'][-1] if downsampled['signal2'] else 0,
+                    "signal3": downsampled['signal3'][-1] if downsampled['signal3'] else 0,
+                    "lead3": downsampled['lead3'][-1] if downsampled['lead3'] else 0,
+                    "avl": downsampled['avl'][-1] if downsampled['avl'] else 0,
+                    "avf": downsampled['avf'][-1] if downsampled['avf'] else 0,
                     "frequency": current_frequency,
                     "refresh_rate": current_refresh_rate,
                     "samples_received": samples_received,
-                    "buffer_size": len(serial_data_buffer)
+                    "buffer_size": len(serial_data_buffer),
+                    "downsampled_timestamps": downsampled_timestamps,
+                    "downsampled_signal1": downsampled['signal1'],
+                    "downsampled_signal2": downsampled['signal2'],
+                    "downsampled_signal3": downsampled['signal3'],
+                    "downsampled_lead3": downsampled['lead3'],
+                    "downsampled_avl": downsampled['avl'],
+                    "downsampled_avf": downsampled['avf'],
                 }
             else:
                 # Generate test data when no sensor data available
                 timestamp, signal1, signal2, signal3 = generate_sinusoidal_data()
                 update_plot_data(timestamp, signal1, signal2, signal3)
-                
                 plot_update = {
                     "type": "plot_data",
                     "timestamp": timestamp,
@@ -555,10 +627,8 @@ async def data_generation_task():
                     "samples_received": samples_received,
                     "buffer_size": len(serial_data_buffer)
                 }
-            
             # Broadcast plot data to all connected clients
             await manager.broadcast(json.dumps(plot_update))
-            
             # Sleep based on refresh rate
             await asyncio.sleep(1.0 / current_refresh_rate)
         else:
