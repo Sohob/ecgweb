@@ -286,7 +286,7 @@
 
         .plots-grid {
             display: grid;
-            grid-template-columns: repeat(3, 1fr);
+            grid-template-columns: repeat(4, 1fr);
             gap: 20px;
             margin-top: 20px;
         }
@@ -401,6 +401,29 @@
                 height: 150px;
             }
         }
+
+        .plots-grid-fixed {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            grid-template-rows: repeat(4, 1fr);
+            gap: 20px;
+            margin-top: 20px;
+        }
+        .plots-grid-fixed .plot-container {
+            min-width: 0;
+        }
+        #container-Lead1 { grid-column: 1; grid-row: 1; }
+        #container-Lead2 { grid-column: 2; grid-row: 1; }
+        #container-Lead3 { grid-column: 3; grid-row: 1; }
+        #container-aVR   { grid-column: 1; grid-row: 2; }
+        #container-aVL   { grid-column: 2; grid-row: 2; }
+        #container-aVF   { grid-column: 3; grid-row: 2; }
+        #container-V1    { grid-column: 1; grid-row: 3; }
+        #container-V2    { grid-column: 2; grid-row: 3; }
+        #container-V3    { grid-column: 3; grid-row: 3; }
+        #container-V4    { grid-column: 1; grid-row: 4; }
+        #container-V5    { grid-column: 2; grid-row: 4; }
+        #container-V6    { grid-column: 3; grid-row: 4; }
     </style>
 </head>
 <body>
@@ -505,30 +528,75 @@
 
             <div class="plot-section">
                 <h3>📊 Real-Time ECG Signals (FIR Filtered)</h3>
-                <div class="plots-grid">
-                    <div class="plot-container">
+                <div id="plot-checkboxes" style="margin-bottom: 10px; text-align: center;">
+                    <button id="show-all-btn" type="button" style="margin-right: 10px; padding: 5px 15px; border-radius: 8px; border: none; background: #667eea; color: white; font-weight: 600; cursor: pointer;">Show All</button>
+                    <label style="margin-right: 10px;">Y-Scale:
+                        <select id="yscale-select" style="margin-left: 5px; padding: 3px 8px; border-radius: 6px;">
+                            <option value="dynamic">Dynamic</option>
+                            <option value="fixed">Fixed</option>
+                        </select>
+                    </label>
+                    <label><input type="checkbox" class="plot-toggle" data-plot="Lead1" checked> Lead I</label>
+                    <label><input type="checkbox" class="plot-toggle" data-plot="Lead2" checked> Lead II</label>
+                    <label><input type="checkbox" class="plot-toggle" data-plot="Lead3" checked> Lead III</label>
+                    <label><input type="checkbox" class="plot-toggle" data-plot="aVR"> aVR</label>
+                    <label><input type="checkbox" class="plot-toggle" data-plot="V1" checked> V1</label>
+                    <label><input type="checkbox" class="plot-toggle" data-plot="V2"> V2</label>
+                    <label><input type="checkbox" class="plot-toggle" data-plot="V3"> V3</label>
+                    <label><input type="checkbox" class="plot-toggle" data-plot="aVL" checked> aVL</label>
+                    <label><input type="checkbox" class="plot-toggle" data-plot="V4"> V4</label>
+                    <label><input type="checkbox" class="plot-toggle" data-plot="V5"> V5</label>
+                    <label><input type="checkbox" class="plot-toggle" data-plot="V6"> V6</label>
+                    <label><input type="checkbox" class="plot-toggle" data-plot="aVF" checked> aVF</label>
+                </div>
+                <div class="plots-grid-fixed">
+                    <div class="plot-container" id="container-Lead1">
                         <div class="plot-header signal1">Lead I (Filtered)</div>
-                        <div id="plot1" style="width:100%; height:150px;"></div>
+                        <div id="plot-Lead1" style="width:100%; height:150px;"></div>
                     </div>
-                    <div class="plot-container">
+                    <div class="plot-container" id="container-Lead2">
                         <div class="plot-header signal2">Lead II (Filtered)</div>
-                        <div id="plot2" style="width:100%; height:150px;"></div>
+                        <div id="plot-Lead2" style="width:100%; height:150px;"></div>
                     </div>
-                    <div class="plot-container">
-                        <div class="plot-header signal3">V1 (Filtered)</div>
-                        <div id="plot3" style="width:100%; height:150px;"></div>
-                    </div>
-                    <div class="plot-container">
+                    <div class="plot-container" id="container-Lead3">
                         <div class="plot-header signal4">Lead III (Filtered)</div>
-                        <div id="plot4" style="width:100%; height:150px;"></div>
+                        <div id="plot-Lead3" style="width:100%; height:150px;"></div>
                     </div>
-                    <div class="plot-container">
+                    <div class="plot-container" id="container-aVR">
+                        <div class="plot-header signal6">aVR (Filtered)</div>
+                        <div id="plot-aVR" style="width:100%; height:150px;"></div>
+                    </div>
+                    <div class="plot-container" id="container-aVL">
                         <div class="plot-header signal5">aVL (Filtered)</div>
-                        <div id="plot5" style="width:100%; height:150px;"></div>
+                        <div id="plot-aVL" style="width:100%; height:150px;"></div>
                     </div>
-                    <div class="plot-container">
+                    <div class="plot-container" id="container-aVF">
                         <div class="plot-header signal6">aVF (Filtered)</div>
-                        <div id="plot6" style="width:100%; height:150px;"></div>
+                        <div id="plot-aVF" style="width:100%; height:150px;"></div>
+                    </div>
+                    <div class="plot-container" id="container-V1">
+                        <div class="plot-header signal3">V1 (Filtered)</div>
+                        <div id="plot-V1" style="width:100%; height:150px;"></div>
+                    </div>
+                    <div class="plot-container" id="container-V2">
+                        <div class="plot-header signal3">V2 (Filtered)</div>
+                        <div id="plot-V2" style="width:100%; height:150px;"></div>
+                    </div>
+                    <div class="plot-container" id="container-V3">
+                        <div class="plot-header signal3">V3 (Filtered)</div>
+                        <div id="plot-V3" style="width:100%; height:150px;"></div>
+                    </div>
+                    <div class="plot-container" id="container-V4">
+                        <div class="plot-header signal3">V4 (Filtered)</div>
+                        <div id="plot-V4" style="width:100%; height:150px;"></div>
+                    </div>
+                    <div class="plot-container" id="container-V5">
+                        <div class="plot-header signal3">V5 (Filtered)</div>
+                        <div id="plot-V5" style="width:100%; height:150px;"></div>
+                    </div>
+                    <div class="plot-container" id="container-V6">
+                        <div class="plot-header signal3">V6 (Filtered)</div>
+                        <div id="plot-V6" style="width:100%; height:150px;"></div>
                     </div>
                 </div>
             </div>
@@ -556,13 +624,36 @@
         // Plot data storage for each signal
         let plotData = {
             timestamps: [],
-            signal1: [],
-            signal2: [],
-            signal3: [],
-            signal4: [],
-            signal5: [],
-            signal6: []
+            Lead1: [],
+            Lead2: [],
+            V1: [],
+            V2: [],
+            V3: [],
+            V4: [],
+            V5: [],
+            V6: [],
+            Lead3: [],
+            aVL: [],
+            aVR: [],
+            aVF: []
         };
+
+        // Y-axis fixed ranges for each lead
+        const yAxisFixedRanges = {
+            Lead1: [0.4, 1.2],
+            Lead2: [-0.3, 0.7],
+            Lead3: [-0.8, -0.2],
+            aVR: [-1, -0.1],
+            aVL: [0.5, 0.7],
+            aVF: [-0.6, 0.2],
+            V1: [-0.4, 0.2],
+            V2: [-1, 0.1],
+            V3: [-0.6, 0.1],
+            V4: [-0.6, 0.6],
+            V5: [-0.6, 0.6],
+            V6: [0, 1]
+        };
+        let yScaleMode = 'dynamic';
 
         // Initialize individual Plotly plots
         function initPlots() {
@@ -570,244 +661,100 @@
                 responsive: true,
                 displayModeBar: false
             };
-
-            // Signal 1 Plot
-            const data1 = [{
-                y: [],
-                name: 'Lead I (Filtered)',
-                type: 'scatter',
-                mode: 'lines',
-                line: { color: '#1f77b4', width: 2 },
-                showlegend: false
-            }];
-
-            const layout1 = {
-                height: 150,
-                margin: { l: 40, r: 20, t: 20, b: 30 },
-                xaxis: {
-                    title: 'Time (s)',
-                    showgrid: true,
-                    gridcolor: '#e1e5e9',
-                    titlefont: { size: 10 },
-                    tickfont: { size: 9 }
-                },
-                yaxis: {
-                    title: 'Amplitude',
-                    showgrid: true,
-                    gridcolor: '#e1e5e9',
-                    titlefont: { size: 10 },
-                    tickfont: { size: 9 }
-                },
-                plot_bgcolor: 'white',
-                paper_bgcolor: 'white',
-                font: { size: 10 }
-            };
-
-            // Signal 2 Plot
-            const data2 = [{
-                y: [],
-                name: 'Lead II (Filtered)',
-                type: 'scatter',
-                mode: 'lines',
-                line: { color: '#ff7f0e', width: 2 },
-                showlegend: false
-            }];
-
-            const layout2 = {
-                height: 150,
-                margin: { l: 40, r: 20, t: 20, b: 30 },
-                xaxis: {
-                    title: 'Time (s)',
-                    showgrid: true,
-                    gridcolor: '#e1e5e9',
-                    titlefont: { size: 10 },
-                    tickfont: { size: 9 }
-                },
-                yaxis: {
-                    title: 'Amplitude',
-                    showgrid: true,
-                    gridcolor: '#e1e5e9',
-                    titlefont: { size: 10 },
-                    tickfont: { size: 9 }
-                },
-                plot_bgcolor: 'white',
-                paper_bgcolor: 'white',
-                font: { size: 10 }
-            };
-
-            // Signal 3 Plot
-            const data3 = [{
-                y: [],
-                name: 'V1 (Filtered)',
-                type: 'scatter',
-                mode: 'lines',
-                line: { color: '#2ca02c', width: 2 },
-                showlegend: false
-            }];
-
-            const layout3 = {
-                height: 150,
-                margin: { l: 40, r: 20, t: 20, b: 30 },
-                xaxis: {
-                    title: 'Time (s)',
-                    showgrid: true,
-                    gridcolor: '#e1e5e9',
-                    titlefont: { size: 10 },
-                    tickfont: { size: 9 }
-                },
-                yaxis: {
-                    title: 'Amplitude',
-                    showgrid: true,
-                    gridcolor: '#e1e5e9',
-                    titlefont: { size: 10 },
-                    tickfont: { size: 9 }
-                },
-                plot_bgcolor: 'white',
-                paper_bgcolor: 'white',
-                font: { size: 10 }
-            };
-
-            // Signal 4 Plot
-            const data4 = [{
-                y: [],
-                name: 'Lead III (Filtered)',
-                type: 'scatter',
-                mode: 'lines',
-                line: { color: '#6f42c1', width: 2 },
-                showlegend: false
-            }];
-
-            const layout4 = {
-                height: 150,
-                margin: { l: 40, r: 20, t: 20, b: 30 },
-                xaxis: {
-                    title: 'Time (s)',
-                    showgrid: true,
-                    gridcolor: '#e1e5e9',
-                    titlefont: { size: 10 },
-                    tickfont: { size: 9 }
-                },
-                yaxis: {
-                    title: 'Amplitude',
-                    showgrid: true,
-                    gridcolor: '#e1e5e9',
-                    titlefont: { size: 10 },
-                    tickfont: { size: 9 }
-                },
-                plot_bgcolor: 'white',
-                paper_bgcolor: 'white',
-                font: { size: 10 }
-            };
-
-            // Signal 5 Plot
-            const data5 = [{
-                y: [],
-                name: 'aVL (Filtered)',
-                type: 'scatter',
-                mode: 'lines',
-                line: { color: '#e83e8c', width: 2 },
-                showlegend: false
-            }];
-
-            const layout5 = {
-                height: 150,
-                margin: { l: 40, r: 20, t: 20, b: 30 },
-                xaxis: {
-                    title: 'Time (s)',
-                    showgrid: true,
-                    gridcolor: '#e1e5e9',
-                    titlefont: { size: 10 },
-                    tickfont: { size: 9 }
-                },
-                yaxis: {
-                    title: 'Amplitude',
-                    showgrid: true,
-                    gridcolor: '#e1e5e9',
-                    titlefont: { size: 10 },
-                    tickfont: { size: 9 }
-                },
-                plot_bgcolor: 'white',
-                paper_bgcolor: 'white',
-                font: { size: 10 }
-            };
-
-            // Signal 6 Plot
-            const data6 = [{
-                y: [],
-                name: 'aVF (Filtered)',
-                type: 'scatter',
-                mode: 'lines',
-                line: { color: '#667eea', width: 2 },
-                showlegend: false
-            }];
-
-            const layout6 = {
-                height: 150,
-                margin: { l: 40, r: 20, t: 20, b: 30 },
-                xaxis: {
-                    title: 'Time (s)',
-                    showgrid: true,
-                    gridcolor: '#e1e5e9',
-                    titlefont: { size: 10 },
-                    tickfont: { size: 9 }
-                },
-                yaxis: {
-                    title: 'Amplitude',
-                    showgrid: true,
-                    gridcolor: '#e1e5e9',
-                    titlefont: { size: 10 },
-                    tickfont: { size: 9 }
-                },
-                plot_bgcolor: 'white',
-                paper_bgcolor: 'white',
-                font: { size: 10 }
-            };
-
-            Plotly.newPlot('plot1', data1, layout1, plotConfig);
-            Plotly.newPlot('plot2', data2, layout2, plotConfig);
-            Plotly.newPlot('plot3', data3, layout3, plotConfig);
-            Plotly.newPlot('plot4', data4, layout4, plotConfig);
-            Plotly.newPlot('plot5', data5, layout5, plotConfig);
-            Plotly.newPlot('plot6', data6, layout6, plotConfig);
+            const plotDefs = [
+                { key: 'Lead1', color: '#1f77b4', label: 'Lead I (Filtered)' },
+                { key: 'Lead2', color: '#ff7f0e', label: 'Lead II (Filtered)' },
+                { key: 'V1', color: '#2ca02c', label: 'V1 (Filtered)' },
+                { key: 'V2', color: '#17a2b8', label: 'V2 (Filtered)' },
+                { key: 'V3', color: '#e377c2', label: 'V3 (Filtered)' },
+                { key: 'V4', color: '#bcbd22', label: 'V4 (Filtered)' },
+                { key: 'V5', color: '#8c564b', label: 'V5 (Filtered)' },
+                { key: 'V6', color: '#9467bd', label: 'V6 (Filtered)' },
+                { key: 'Lead3', color: '#6f42c1', label: 'Lead III (Filtered)' },
+                { key: 'aVL', color: '#e83e8c', label: 'aVL (Filtered)' },
+                { key: 'aVR', color: '#fd7e14', label: 'aVR (Filtered)' },
+                { key: 'aVF', color: '#667eea', label: 'aVF (Filtered)' }
+            ];
+            plotDefs.forEach(def => {
+                Plotly.newPlot(
+                    `plot-${def.key}`,
+                    [{ y: [], name: def.label, type: 'scatter', mode: 'lines', line: { color: def.color, width: 2 }, showlegend: false }],
+                    {
+                        height: 150,
+                        margin: { l: 40, r: 20, t: 20, b: 30 },
+                        xaxis: {
+                            title: 'Time (s)',
+                            showgrid: true,
+                            gridcolor: '#e1e5e9',
+                            titlefont: { size: 10 },
+                            tickfont: { size: 9 }
+                        },
+                        yaxis: {
+                            title: 'Amplitude',
+                            showgrid: true,
+                            gridcolor: '#e1e5e9',
+                            titlefont: { size: 10 },
+                            tickfont: { size: 9 }
+                        },
+                        plot_bgcolor: 'white',
+                        paper_bgcolor: 'white',
+                        font: { size: 10 }
+                    },
+                    plotConfig
+                );
+            });
+        }
+        flag = false;
+        t0 = 0;
+        // Update individual plots with new data
+        function updatePlots(timestamps, allSignals) {
+            plotData.timestamps = timestamps;
+            Object.keys(allSignals).forEach(key => {
+                plotData[key] = allSignals[key];
+            });
+            if (flag == false) {
+                t0 = plotData.timestamps[0];
+                flag = true;
+            }
+            // Use raw timestamps directly for the x-axis
+            let absTime = plotData.timestamps;
+            absTime = absTime.map(t => t - t0);
+            Object.keys(allSignals).forEach(key => {
+                let update = {
+                    x: [absTime],
+                    y: [plotData[key]]
+                };
+                if (yScaleMode === 'fixed' && yAxisFixedRanges[key]) {
+                    update['yaxis.range'] = [yAxisFixedRanges[key][0], yAxisFixedRanges[key][1]];
+                    Plotly.relayout(`plot-${key}`, { 'yaxis.autorange': false, 'yaxis.range': yAxisFixedRanges[key] });
+                } else {
+                    Plotly.relayout(`plot-${key}`, { 'yaxis.autorange': true });
+                }
+                Plotly.restyle(`plot-${key}`, update);
+            });
         }
 
-        // Update individual plots with new data
-        function updatePlots(timestamps, signal1, signal2, signal3, signal4, signal5, signal6) {
-            plotData.timestamps = timestamps;
-            plotData.signal1 = signal1;
-            plotData.signal2 = signal2;
-            plotData.signal3 = signal3;
-            plotData.signal4 = signal4;
-            plotData.signal5 = signal5;
-            plotData.signal6 = signal6;
-
-            // Convert timestamps to relative time for better display
-            const relativeTime = plotData.timestamps.length > 0 ? plotData.timestamps.map(t => t - plotData.timestamps[0]) : [];
-
-            // Update each plot individually
-            Plotly.restyle('plot1', {
-                x: [relativeTime],
-                y: [plotData.signal1]
+        // Show/hide plots based on checkboxes
+        function setupPlotToggles() {
+            document.querySelectorAll('.plot-toggle').forEach(cb => {
+                cb.addEventListener('change', function() {
+                    const plotKey = this.getAttribute('data-plot');
+                    const container = document.getElementById(`container-${plotKey}`);
+                    if (this.checked) {
+                        container.style.visibility = '';
+                    } else {
+                        container.style.visibility = 'hidden';
+                    }
+                });
             });
-            Plotly.restyle('plot2', {
-                x: [relativeTime],
-                y: [plotData.signal2]
-            });
-            Plotly.restyle('plot3', {
-                x: [relativeTime],
-                y: [plotData.signal3]
-            });
-            Plotly.restyle('plot4', {
-                x: [relativeTime],
-                y: [plotData.signal4]
-            });
-            Plotly.restyle('plot5', {
-                x: [relativeTime],
-                y: [plotData.signal5]
-            });
-            Plotly.restyle('plot6', {
-                x: [relativeTime],
-                y: [plotData.signal6]
+            // Show All button
+            document.getElementById('show-all-btn').addEventListener('click', function() {
+                document.querySelectorAll('.plot-toggle').forEach(cb => {
+                    cb.checked = true;
+                    const plotKey = cb.getAttribute('data-plot');
+                    const container = document.getElementById(`container-${plotKey}`);
+                    container.style.visibility = '';
+                });
             });
         }
 
@@ -864,15 +811,23 @@
         function handleWebSocketMessage(data) {
             switch(data.type) {
                 case 'plot_data':
-                    // Use downsampled arrays if available
+                    // Use downsampled arrays for all 12 leads
                     const timestamps = data.downsampled_timestamps || [];
-                    const signal1 = data.downsampled_signal1 || [];
-                    const signal2 = data.downsampled_signal2 || [];
-                    const signal3 = data.downsampled_signal3 || [];
-                    const signal4 = data.downsampled_lead3 || [];
-                    const signal5 = data.downsampled_avl || [];
-                    const signal6 = data.downsampled_avf || [];
-                    updatePlots(timestamps, signal1, signal2, signal3, signal4, signal5, signal6);
+                    const allSignals = {
+                        Lead1: data.downsampled_Lead1 || [],
+                        Lead2: data.downsampled_Lead2 || [],
+                        V1: data.downsampled_V1 || [],
+                        V2: data.downsampled_V2 || [],
+                        V3: data.downsampled_V3 || [],
+                        V4: data.downsampled_V4 || [],
+                        V5: data.downsampled_V5 || [],
+                        V6: data.downsampled_V6 || [],
+                        Lead3: data.downsampled_Lead3 || [],
+                        aVL: data.downsampled_aVL || [],
+                        aVR: data.downsampled_aVR || [],
+                        aVF: data.downsampled_aVF || []
+                    };
+                    updatePlots(timestamps, allSignals);
                     if (data.samples_received !== undefined) {
                         document.getElementById('samplesReceived').textContent = data.samples_received;
                     }
@@ -1139,6 +1094,7 @@
             initWebSocket();
             updateStatus();
             loadConfiguration();
+            setupPlotToggles();
             
             // Update status at configured interval
             setInterval(updateStatus, statusUpdateInterval);
@@ -1156,6 +1112,12 @@
                     // Optionally auto-configure when frequency changes
                     // configureSensor();
                 }
+            });
+
+            document.getElementById('yscale-select').addEventListener('change', function() {
+                yScaleMode = this.value;
+                // Force update of y-axis for all plots
+                updatePlots(plotData.timestamps, plotData);
             });
         });
     </script>

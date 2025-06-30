@@ -562,12 +562,18 @@ async def data_generation_task():
                 # Downsample each signal for plotting
                 timestamps = plot_data['timestamps']
                 signals = {
-                    'signal1': plot_data['filtered_leads']['Lead1'],
-                    'signal2': plot_data['filtered_leads']['Lead2'],
-                    'signal3': plot_data['filtered_leads']['V1'],
-                    'lead3': plot_data['filtered_leads']['Lead3'],
-                    'avl': plot_data['filtered_leads']['aVL'],
-                    'avf': plot_data['filtered_leads']['aVF'],
+                    'Lead1': plot_data['filtered_leads']['Lead1'],
+                    'Lead2': plot_data['filtered_leads']['Lead2'],
+                    'V1': plot_data['filtered_leads']['V1'],
+                    'V2': plot_data['filtered_leads']['V2'],
+                    'V3': plot_data['filtered_leads']['V3'],
+                    'V4': plot_data['filtered_leads']['V4'],
+                    'V5': plot_data['filtered_leads']['V5'],
+                    'V6': plot_data['filtered_leads']['V6'],
+                    'Lead3': plot_data['filtered_leads']['Lead3'],
+                    'aVL': plot_data['filtered_leads']['aVL'],
+                    'aVR': plot_data['filtered_leads']['aVR'],
+                    'aVF': plot_data['filtered_leads']['aVF'],
                 }
                 downsampled = {}
                 for key, ydata in signals.items():
@@ -581,7 +587,7 @@ async def data_generation_task():
                         downsampled[key] = ydata[-LTTB_TARGET_POINTS:] if len(ydata) > LTTB_TARGET_POINTS else ydata
                 # Downsample timestamps for x-axis
                 if len(timestamps) > 2:
-                    xy = list(zip(timestamps, signals['signal1']))
+                    xy = list(zip(timestamps, signals['Lead1']))
                     lttb = largest_triangle_three_buckets(xy, LTTB_TARGET_POINTS)
                     x_down, _ = zip(*lttb)
                     downsampled_timestamps = list(x_down)
@@ -592,24 +598,22 @@ async def data_generation_task():
                 plot_update = {
                     "type": "plot_data",
                     "timestamp": timestamp,
-                    "signal1": downsampled['signal1'][-1] if downsampled['signal1'] else 0,
-                    "signal2": downsampled['signal2'][-1] if downsampled['signal2'] else 0,
-                    "signal3": downsampled['signal3'][-1] if downsampled['signal3'] else 0,
-                    "lead3": downsampled['lead3'][-1] if downsampled['lead3'] else 0,
-                    "avl": downsampled['avl'][-1] if downsampled['avl'] else 0,
-                    "avf": downsampled['avf'][-1] if downsampled['avf'] else 0,
                     "frequency": current_frequency,
                     "refresh_rate": current_refresh_rate,
                     "samples_received": samples_received,
                     "buffer_size": len(serial_data_buffer),
                     "downsampled_timestamps": downsampled_timestamps,
-                    "downsampled_signal1": downsampled['signal1'],
-                    "downsampled_signal2": downsampled['signal2'],
-                    "downsampled_signal3": downsampled['signal3'],
-                    "downsampled_lead3": downsampled['lead3'],
-                    "downsampled_avl": downsampled['avl'],
-                    "downsampled_avf": downsampled['avf'],
                 }
+                # Add all 12 leads to the plot_update
+                for key in signals.keys():
+                    plot_update[f"downsampled_{key}"] = downsampled[key]
+                    # For backward compatibility, keep the first 6 as signal1..signal6
+                plot_update["signal1"] = downsampled['Lead1'][-1] if downsampled['Lead1'] else 0
+                plot_update["signal2"] = downsampled['Lead2'][-1] if downsampled['Lead2'] else 0
+                plot_update["signal3"] = downsampled['V1'][-1] if downsampled['V1'] else 0
+                plot_update["lead3"] = downsampled['Lead3'][-1] if downsampled['Lead3'] else 0
+                plot_update["avl"] = downsampled['aVL'][-1] if downsampled['aVL'] else 0
+                plot_update["avf"] = downsampled['aVF'][-1] if downsampled['aVF'] else 0
             else:
                 # Generate test data when no sensor data available
                 timestamp, signal1, signal2, signal3 = generate_sinusoidal_data()
