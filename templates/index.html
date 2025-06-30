@@ -772,56 +772,39 @@
         }
 
         // Update individual plots with new data
-        function updatePlots(timestamp, signal1, signal2, signal3, signal4, signal5, signal6) {
-            plotData.timestamps.push(timestamp);
-            plotData.signal1.push(signal1);
-            plotData.signal2.push(signal2);
-            plotData.signal3.push(signal3);
-            plotData.signal4.push(signal4);
-            plotData.signal5.push(signal5);
-            plotData.signal6.push(signal6);
-
-            // Keep only last 150 points for smooth plotting
-            const maxPoints = 150;
-            if (plotData.timestamps.length > maxPoints) {
-                plotData.timestamps = plotData.timestamps.slice(-maxPoints);
-                plotData.signal1 = plotData.signal1.slice(-maxPoints);
-                plotData.signal2 = plotData.signal2.slice(-maxPoints);
-                plotData.signal3 = plotData.signal3.slice(-maxPoints);
-                plotData.signal4 = plotData.signal4.slice(-maxPoints);
-                plotData.signal5 = plotData.signal5.slice(-maxPoints);
-                plotData.signal6 = plotData.signal6.slice(-maxPoints);
-            }
+        function updatePlots(timestamps, signal1, signal2, signal3, signal4, signal5, signal6) {
+            plotData.timestamps = timestamps;
+            plotData.signal1 = signal1;
+            plotData.signal2 = signal2;
+            plotData.signal3 = signal3;
+            plotData.signal4 = signal4;
+            plotData.signal5 = signal5;
+            plotData.signal6 = signal6;
 
             // Convert timestamps to relative time for better display
-            const relativeTime = plotData.timestamps.map(t => t - plotData.timestamps[0]);
+            const relativeTime = plotData.timestamps.length > 0 ? plotData.timestamps.map(t => t - plotData.timestamps[0]) : [];
 
             // Update each plot individually
             Plotly.restyle('plot1', {
                 x: [relativeTime],
                 y: [plotData.signal1]
             });
-
             Plotly.restyle('plot2', {
                 x: [relativeTime],
                 y: [plotData.signal2]
             });
-
             Plotly.restyle('plot3', {
                 x: [relativeTime],
                 y: [plotData.signal3]
             });
-
             Plotly.restyle('plot4', {
                 x: [relativeTime],
                 y: [plotData.signal4]
             });
-
             Plotly.restyle('plot5', {
                 x: [relativeTime],
                 y: [plotData.signal5]
             });
-
             Plotly.restyle('plot6', {
                 x: [relativeTime],
                 y: [plotData.signal6]
@@ -881,16 +864,15 @@
         function handleWebSocketMessage(data) {
             switch(data.type) {
                 case 'plot_data':
-                    // Map ECG data to plots
-                    const lead1 = data.signal1 || 0;
-                    const lead2 = data.signal2 || 0;
-                    const v1 = data.signal3 || 0;
-                    const lead3 = data.lead3 || 0;
-                    const avl = data.avl || 0;
-                    const avf = data.avf || 0;
-                    
-                    updatePlots(data.timestamp, lead1, lead2, v1, lead3, avl, avf);
-                    
+                    // Use downsampled arrays if available
+                    const timestamps = data.downsampled_timestamps || [];
+                    const signal1 = data.downsampled_signal1 || [];
+                    const signal2 = data.downsampled_signal2 || [];
+                    const signal3 = data.downsampled_signal3 || [];
+                    const signal4 = data.downsampled_lead3 || [];
+                    const signal5 = data.downsampled_avl || [];
+                    const signal6 = data.downsampled_avf || [];
+                    updatePlots(timestamps, signal1, signal2, signal3, signal4, signal5, signal6);
                     if (data.samples_received !== undefined) {
                         document.getElementById('samplesReceived').textContent = data.samples_received;
                     }
