@@ -34,6 +34,22 @@
             margin-bottom: 40px;
         }
 
+        .header-content {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+
+        .header-left {
+            flex: 1;
+            text-align: left;
+        }
+
+        .header-right {
+            flex-shrink: 0;
+        }
+
         .header h1 {
             color: #333;
             font-size: 2.5rem;
@@ -44,6 +60,25 @@
         .header p {
             color: #666;
             font-size: 1.1rem;
+        }
+
+        .logout-btn {
+            background: linear-gradient(135deg, #dc3545 0%, #fd7e14 100%);
+            color: white;
+            text-decoration: none;
+            padding: 12px 20px;
+            border-radius: 10px;
+            font-weight: 600;
+            font-size: 1rem;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 15px rgba(220, 53, 69, 0.3);
+        }
+
+        .logout-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(220, 53, 69, 0.4);
+            color: white;
+            text-decoration: none;
         }
 
         .main-content {
@@ -133,6 +168,11 @@
         .status-stopped {
             background: #f8d7da;
             color: #721c24;
+        }
+        
+        .status-waiting {
+            background: #fff3cd;
+            color: #856404;
         }
 
         .config-panel {
@@ -268,6 +308,183 @@
 
         .control-btn.configure:hover:not(:disabled) {
             box-shadow: 0 8px 25px rgba(111, 66, 193, 0.4);
+        }
+
+        /* Recording & Playback Panel Styles */
+        .recording-playback-panel {
+            background: linear-gradient(135deg, #17a2b8 0%, #20c997 100%);
+            border-radius: 15px;
+            color: white;
+            box-shadow: 0 8px 25px rgba(23, 162, 184, 0.3);
+            margin-bottom: 20px;
+            overflow: hidden;
+        }
+        
+        .panel-tabs {
+            display: flex;
+            background: rgba(255, 255, 255, 0.1);
+            border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+        }
+        
+        .tab-btn {
+            flex: 1;
+            padding: 15px 20px;
+            background: none;
+            border: none;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 600;
+            color: rgba(255, 255, 255, 0.8);
+            transition: all 0.3s ease;
+        }
+        
+        .tab-btn:hover {
+            background: rgba(255, 255, 255, 0.1);
+            color: white;
+        }
+        
+        .tab-btn.active {
+            background: rgba(255, 255, 255, 0.2);
+            color: white;
+            border-bottom: 3px solid white;
+        }
+        
+        .tab-content {
+            display: none;
+            padding: 25px;
+        }
+        
+        .tab-content.active {
+            display: block;
+        }
+
+        .recording-mode-selector {
+            display: flex;
+            gap: 20px;
+            margin-bottom: 20px;
+        }
+
+        .mode-option {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            cursor: pointer;
+        }
+
+        .mode-option input[type="radio"] {
+            width: 18px;
+            height: 18px;
+            accent-color: #fff;
+        }
+
+        .mode-label {
+            font-weight: 600;
+            font-size: 1rem;
+        }
+
+        .interval-config {
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 10px;
+            padding: 15px;
+            margin-bottom: 20px;
+        }
+        
+        .config-section {
+            margin-bottom: 20px;
+        }
+        
+        .config-section h4 {
+            margin-bottom: 10px;
+            font-size: 1rem;
+            font-weight: 600;
+        }
+        
+        .time-input-group {
+            display: flex;
+            gap: 20px;
+            margin-bottom: 15px;
+        }
+        
+        .time-option {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            cursor: pointer;
+        }
+        
+        .time-option input[type="radio"] {
+            width: 16px;
+            height: 16px;
+            accent-color: #fff;
+        }
+        
+        .time-label {
+            font-weight: 500;
+            font-size: 0.95rem;
+        }
+        
+        .time-input-row {
+            display: flex;
+            gap: 15px;
+            align-items: end;
+        }
+        
+        .time-input-field {
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+        }
+        
+        .time-input-field label {
+            font-size: 0.85rem;
+            font-weight: 500;
+            color: rgba(255, 255, 255, 0.9);
+        }
+        
+        .time-input {
+            width: 80px;
+            padding: 8px 10px;
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            border-radius: 6px;
+            background: rgba(255, 255, 255, 0.1);
+            color: white;
+            font-size: 0.9rem;
+            text-align: center;
+        }
+        
+        .time-input:focus {
+            outline: none;
+            border-color: rgba(255, 255, 255, 0.6);
+            background: rgba(255, 255, 255, 0.15);
+        }
+        
+        .time-input::-webkit-inner-spin-button,
+        .time-input::-webkit-outer-spin-button {
+            opacity: 1;
+        }
+
+        .recording-controls, .playback-controls {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+
+        .recording-status, .playback-status {
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 10px;
+            padding: 15px;
+            margin-bottom: 20px;
+        }
+
+        .export-controls {
+            display: flex;
+            gap: 15px;
+            align-items: center;
+        }
+
+        .export-controls select {
+            flex: 1;
         }
 
         .plot-section {
@@ -424,13 +641,224 @@
         #container-V4    { grid-column: 1; grid-row: 4; }
         #container-V5    { grid-column: 2; grid-row: 4; }
         #container-V6    { grid-column: 3; grid-row: 4; }
+
+        /* BDF Data Entry Styles */
+        .bdf-data-entry {
+            background: #f8f9fa;
+            border-radius: 15px;
+            padding: 20px;
+            margin-top: 15px;
+            border: 2px solid #e9ecef;
+        }
+
+        .bdf-data-entry h4 {
+            margin: 0 0 15px 0;
+            color: #333;
+            font-size: 1.1rem;
+            text-align: center;
+        }
+
+        .bdf-form-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 15px;
+        }
+
+        .bdf-form-group {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .bdf-form-group label {
+            font-weight: 600;
+            margin-bottom: 5px;
+            color: #555;
+            font-size: 0.9rem;
+        }
+
+        .bdf-input {
+            padding: 8px 12px;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            font-size: 0.9rem;
+            background: white;
+            transition: border-color 0.3s ease;
+        }
+
+        .bdf-input:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 2px rgba(102, 126, 234, 0.1);
+        }
+
+        .bdf-input[type="textarea"] {
+            min-height: 60px;
+            resize: vertical;
+        }
+
+        .bdf-form-group:nth-child(12) {
+            grid-column: 1 / -1;
+        }
+
+        /* Modal Styles */
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0,0,0,0.5);
+        }
+
+        .modal-content {
+            background-color: #fefefe;
+            margin: 5% auto;
+            padding: 0;
+            border-radius: 15px;
+            width: 80%;
+            max-width: 800px;
+            max-height: 80vh;
+            overflow-y: auto;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+        }
+
+        .modal-header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 20px;
+            border-radius: 15px 15px 0 0;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .modal-header h3 {
+            margin: 0;
+            font-size: 1.3rem;
+        }
+
+        .close {
+            color: white;
+            font-size: 28px;
+            font-weight: bold;
+            cursor: pointer;
+            line-height: 1;
+        }
+
+        .close:hover {
+            opacity: 0.7;
+        }
+
+        .modal-body {
+            padding: 20px;
+        }
+
+        .modal-body p {
+            margin-bottom: 20px;
+            color: #666;
+            font-style: italic;
+        }
+
+        .modal-footer {
+            padding: 20px;
+            border-top: 1px solid #eee;
+            text-align: right;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 600;
+            margin-left: 10px;
+        }
+
+        .btn-primary:hover {
+            opacity: 0.9;
+        }
+
+        .btn-secondary {
+            background: #6c757d;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 600;
+        }
+
+        .btn-secondary:hover {
+            background: #5a6268;
+        }
+
+        /* Y-Scale Settings Grid */
+        .y-scale-settings-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 20px;
+        }
+
+        .y-scale-setting-group {
+            background: #f8f9fa;
+            border-radius: 10px;
+            padding: 15px;
+            border: 1px solid #e9ecef;
+        }
+
+        .y-scale-setting-group h4 {
+            margin: 0 0 10px 0;
+            color: #333;
+            font-size: 1rem;
+            text-align: center;
+        }
+
+        .y-scale-inputs {
+            display: flex;
+            gap: 10px;
+            justify-content: space-between;
+        }
+
+        .y-scale-inputs label {
+            display: flex;
+            flex-direction: column;
+            font-size: 0.9rem;
+            color: #555;
+            font-weight: 500;
+        }
+
+        .y-scale-input {
+            padding: 6px 10px;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            font-size: 0.9rem;
+            margin-top: 4px;
+            width: 100px;
+        }
+
+        .y-scale-input:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 2px rgba(102, 126, 234, 0.1);
+        }
     </style>
 </head>
 <body>
     <div class="container">
         <div class="header">
-            <h1>ECG Sensor Control</h1>
-            <p>Real-time sensor monitoring and control interface</p>
+            <div class="header-content">
+                <div class="header-left">
+                    <h1>ECG Sensor Control</h1>
+                    <p>Real-time sensor monitoring and control interface</p>
+                </div>
+                <div class="header-right">
+                    <a href="/logout" class="logout-btn">🚪 Logout</a>
+                </div>
+            </div>
         </div>
 
         <div class="main-content">
@@ -520,9 +948,202 @@
                     <button class="control-btn stop" id="stop-btn" onclick="sendCommand('stop')">
                         ⏹ Stop
                     </button>
-                    <button class="control-btn record" id="record-btn" onclick="sendCommand('record')">
-                        🔴 Record
-                    </button>
+                </div>
+
+                <!-- Recording & Playback Panel -->
+                <div class="recording-playback-panel">
+                    <div class="panel-tabs">
+                        <button class="tab-btn active" onclick="switchTab('recording')" id="recording-tab">🎙️ Recording</button>
+                        <button class="tab-btn" onclick="switchTab('playback')" id="playback-tab">🎵 Playback & Export</button>
+                    </div>
+                    
+                    <!-- Recording Tab -->
+                    <div class="tab-content active" id="recording-content">
+                        <div class="recording-mode-selector">
+                            <label class="mode-option">
+                                <input type="radio" name="recording-mode" value="manual" checked>
+                                <span class="mode-label">Manual Recording</span>
+                            </label>
+                            <label class="mode-option">
+                                <input type="radio" name="recording-mode" value="interval">
+                                <span class="mode-label">Interval Recording</span>
+                            </label>
+                        </div>
+                        
+                        <div class="interval-config" id="interval-config" style="display: none;">
+                            <div class="config-section">
+                                <h4>Start Time</h4>
+                                <div class="time-input-group">
+                                    <label class="time-option">
+                                        <input type="radio" name="start-time-mode" value="now" checked>
+                                        <span class="time-label">Start Now</span>
+                                    </label>
+                                    <label class="time-option">
+                                        <input type="radio" name="start-time-mode" value="delay">
+                                        <span class="time-label">Start in:</span>
+                                    </label>
+                                </div>
+                                <div class="relative-time-inputs" id="start-delay-inputs" style="display: none;">
+                                    <div class="time-input-row">
+                                        <div class="time-input-field">
+                                            <label for="start-hours">Hours</label>
+                                            <input type="number" id="start-hours" class="time-input" min="0" max="24" value="0">
+                                        </div>
+                                        <div class="time-input-field">
+                                            <label for="start-minutes">Minutes</label>
+                                            <input type="number" id="start-minutes" class="time-input" min="0" max="59" value="0">
+                                        </div>
+                                        <div class="time-input-field">
+                                            <label for="start-seconds">Seconds</label>
+                                            <input type="number" id="start-seconds" class="time-input" min="0" max="59" value="5">
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="config-section">
+                                <h4>Duration</h4>
+                                <div class="time-input-row">
+                                    <div class="time-input-field">
+                                        <label for="duration-hours">Hours</label>
+                                        <input type="number" id="duration-hours" class="time-input" min="0" max="24" value="0">
+                                    </div>
+                                    <div class="time-input-field">
+                                        <label for="duration-minutes">Minutes</label>
+                                        <input type="number" id="duration-minutes" class="time-input" min="0" max="59" value="0">
+                                    </div>
+                                    <div class="time-input-field">
+                                        <label for="duration-seconds">Seconds</label>
+                                        <input type="number" id="duration-seconds" class="time-input" min="1" max="59" value="30">
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="recording-controls">
+                            <button class="control-btn record" id="start-recording-btn" onclick="startRecording()">
+                                🔴 Start Recording
+                            </button>
+                            <button class="control-btn stop" id="stop-recording-btn" onclick="stopRecording()" disabled>
+                                ⏹ Stop Recording
+                            </button>
+                        </div>
+                        
+                        <div class="recording-status" id="recording-status">
+                            <div class="status-item">
+                                <span class="status-label">Recording:</span>
+                                <span class="status-value" id="recording-status-value">Not Recording</span>
+                            </div>
+                            <div class="status-item">
+                                <span class="status-label">Elapsed:</span>
+                                <span class="status-value" id="recording-elapsed">0s</span>
+                            </div>
+                            <div class="status-item">
+                                <span class="status-label">Data Points:</span>
+                                <span class="status-value" id="recording-data-points">0</span>
+                            </div>
+                            <div class="status-item" id="countdown-item" style="display: none;">
+                                <span class="status-label">Countdown:</span>
+                                <span class="status-value" id="recording-countdown">0s</span>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Playback Tab -->
+                    <div class="tab-content" id="playback-content">
+                        <div class="playback-controls">
+                            <button class="control-btn" id="play-btn" onclick="startPlayback()" disabled>
+                                ▶ Play
+                            </button>
+                            <button class="control-btn" id="pause-btn" onclick="pausePlayback()" disabled>
+                                ⏸ Pause
+                            </button>
+                            <button class="control-btn" id="restart-btn" onclick="restartPlayback()" disabled>
+                                🔄 Restart
+                            </button>
+                        </div>
+                        
+                        <div class="playback-status">
+                            <div class="status-item">
+                                <span class="status-label">Playback:</span>
+                                <span class="status-value" id="playback-status">Stopped</span>
+                            </div>
+                            <div class="status-item">
+                                <span class="status-label">Position:</span>
+                                <span class="status-value" id="playback-position">0%</span>
+                            </div>
+                        </div>
+                        
+                        <div class="export-controls">
+                            <select id="export-format" class="config-input" onchange="toggleBdfDataEntry()">
+                                <option value="csv">CSV Format</option>
+                                <option value="bdf">BDF Format</option>
+                            </select>
+                            <button class="control-btn" id="export-btn" onclick="exportRecording()" disabled>
+                                📁 Export
+                            </button>
+                        </div>
+                        
+                        <!-- BDF Data Entry Tab -->
+                        <div class="bdf-data-entry" id="bdf-data-entry" style="display: none;">
+                            <h4>BDF Export Metadata</h4>
+                            <div class="bdf-form-grid">
+                                <div class="bdf-form-group">
+                                    <label for="bdf-technician">Technician</label>
+                                    <input type="text" id="bdf-technician" class="bdf-input" value="ECG Sensor System">
+                                </div>
+                                <div class="bdf-form-group">
+                                    <label for="bdf-patient-name">Patient Name</label>
+                                    <input type="text" id="bdf-patient-name" class="bdf-input" placeholder="Enter patient name">
+                                </div>
+                                <div class="bdf-form-group">
+                                    <label for="bdf-patient-code">Patient Code</label>
+                                    <input type="text" id="bdf-patient-code" class="bdf-input" placeholder="Enter patient code">
+                                </div>
+                                <div class="bdf-form-group">
+                                    <label for="bdf-birthdate">Birth Date</label>
+                                    <input type="date" id="bdf-birthdate" class="bdf-input">
+                                </div>
+                                <div class="bdf-form-group">
+                                    <label for="bdf-gender">Gender</label>
+                                    <select id="bdf-gender" class="bdf-input">
+                                        <option value="">Select gender</option>
+                                        <option value="M">Male</option>
+                                        <option value="F">Female</option>
+                                        <option value="X">Other</option>
+                                    </select>
+                                </div>
+                                <div class="bdf-form-group">
+                                    <label for="bdf-weight">Weight (kg)</label>
+                                    <input type="number" id="bdf-weight" class="bdf-input" placeholder="Enter weight">
+                                </div>
+                                <div class="bdf-form-group">
+                                    <label for="bdf-height">Height (cm)</label>
+                                    <input type="number" id="bdf-height" class="bdf-input" placeholder="Enter height">
+                                </div>
+                                <div class="bdf-form-group">
+                                    <label for="bdf-equipment">Equipment</label>
+                                    <input type="text" id="bdf-equipment" class="bdf-input" value="ECG Sensor with FIR filtering">
+                                </div>
+                                <div class="bdf-form-group">
+                                    <label for="bdf-hospital">Hospital</label>
+                                    <input type="text" id="bdf-hospital" class="bdf-input" placeholder="Enter hospital name">
+                                </div>
+                                <div class="bdf-form-group">
+                                    <label for="bdf-department">Department</label>
+                                    <input type="text" id="bdf-department" class="bdf-input" placeholder="Enter department">
+                                </div>
+                                <div class="bdf-form-group">
+                                    <label for="bdf-recording-additional">Recording Notes</label>
+                                    <input type="text" id="bdf-recording-additional" class="bdf-input" placeholder="Additional recording information">
+                                </div>
+                                <div class="bdf-form-group">
+                                    <label for="bdf-patient-comment">Patient Comments</label>
+                                    <textarea id="bdf-patient-comment" class="bdf-input" placeholder="Enter patient comments or notes"></textarea>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
                 </div>
             </div>
 
@@ -536,6 +1157,7 @@
                             <option value="fixed">Fixed</option>
                         </select>
                     </label>
+                    <button id="y-scale-settings-btn" type="button" style="margin-left: 10px; padding: 5px 8px; border-radius: 6px; border: none; background: #6c757d; color: white; font-weight: 600; cursor: pointer; display: none;">⚙️</button>
                     <label><input type="checkbox" class="plot-toggle" data-plot="Lead1" checked> Lead I</label>
                     <label><input type="checkbox" class="plot-toggle" data-plot="Lead2" checked> Lead II</label>
                     <label><input type="checkbox" class="plot-toggle" data-plot="Lead3" checked> Lead III</label>
@@ -548,6 +1170,109 @@
                     <label><input type="checkbox" class="plot-toggle" data-plot="V5"> V5</label>
                     <label><input type="checkbox" class="plot-toggle" data-plot="V6"> V6</label>
                     <label><input type="checkbox" class="plot-toggle" data-plot="aVF" checked> aVF</label>
+                </div>
+                
+                <!-- Y-Scale Settings Modal -->
+                <div id="y-scale-settings-modal" class="modal" style="display: none;">
+                    <div class="modal-content">
+                        <div class="modal-header">
+                            <h3>Y-Scale Settings</h3>
+                            <span class="close" onclick="closeYScaleSettings()">&times;</span>
+                        </div>
+                        <div class="modal-body">
+                            <p>Configure fixed Y-axis ranges for each plot. Leave empty for auto-range.</p>
+                            <div class="y-scale-settings-grid">
+                                <div class="y-scale-setting-group">
+                                    <h4>Lead I</h4>
+                                    <div class="y-scale-inputs">
+                                        <label>Min: <input type="number" id="Lead1-min" class="y-scale-input" step="0.1" placeholder="Auto"></label>
+                                        <label>Max: <input type="number" id="Lead1-max" class="y-scale-input" step="0.1" placeholder="Auto"></label>
+                                    </div>
+                                </div>
+                                <div class="y-scale-setting-group">
+                                    <h4>Lead II</h4>
+                                    <div class="y-scale-inputs">
+                                        <label>Min: <input type="number" id="Lead2-min" class="y-scale-input" step="0.1" placeholder="Auto"></label>
+                                        <label>Max: <input type="number" id="Lead2-max" class="y-scale-input" step="0.1" placeholder="Auto"></label>
+                                    </div>
+                                </div>
+                                <div class="y-scale-setting-group">
+                                    <h4>Lead III</h4>
+                                    <div class="y-scale-inputs">
+                                        <label>Min: <input type="number" id="Lead3-min" class="y-scale-input" step="0.1" placeholder="Auto"></label>
+                                        <label>Max: <input type="number" id="Lead3-max" class="y-scale-input" step="0.1" placeholder="Auto"></label>
+                                    </div>
+                                </div>
+                                <div class="y-scale-setting-group">
+                                    <h4>aVR</h4>
+                                    <div class="y-scale-inputs">
+                                        <label>Min: <input type="number" id="aVR-min" class="y-scale-input" step="0.1" placeholder="Auto"></label>
+                                        <label>Max: <input type="number" id="aVR-max" class="y-scale-input" step="0.1" placeholder="Auto"></label>
+                                    </div>
+                                </div>
+                                <div class="y-scale-setting-group">
+                                    <h4>aVL</h4>
+                                    <div class="y-scale-inputs">
+                                        <label>Min: <input type="number" id="aVL-min" class="y-scale-input" step="0.1" placeholder="Auto"></label>
+                                        <label>Max: <input type="number" id="aVL-max" class="y-scale-input" step="0.1" placeholder="Auto"></label>
+                                    </div>
+                                </div>
+                                <div class="y-scale-setting-group">
+                                    <h4>aVF</h4>
+                                    <div class="y-scale-inputs">
+                                        <label>Min: <input type="number" id="aVF-min" class="y-scale-input" step="0.1" placeholder="Auto"></label>
+                                        <label>Max: <input type="number" id="aVF-max" class="y-scale-input" step="0.1" placeholder="Auto"></label>
+                                    </div>
+                                </div>
+                                <div class="y-scale-setting-group">
+                                    <h4>V1</h4>
+                                    <div class="y-scale-inputs">
+                                        <label>Min: <input type="number" id="V1-min" class="y-scale-input" step="0.1" placeholder="Auto"></label>
+                                        <label>Max: <input type="number" id="V1-max" class="y-scale-input" step="0.1" placeholder="Auto"></label>
+                                    </div>
+                                </div>
+                                <div class="y-scale-setting-group">
+                                    <h4>V2</h4>
+                                    <div class="y-scale-inputs">
+                                        <label>Min: <input type="number" id="V2-min" class="y-scale-input" step="0.1" placeholder="Auto"></label>
+                                        <label>Max: <input type="number" id="V2-max" class="y-scale-input" step="0.1" placeholder="Auto"></label>
+                                    </div>
+                                </div>
+                                <div class="y-scale-setting-group">
+                                    <h4>V3</h4>
+                                    <div class="y-scale-inputs">
+                                        <label>Min: <input type="number" id="V3-min" class="y-scale-input" step="0.1" placeholder="Auto"></label>
+                                        <label>Max: <input type="number" id="V3-max" class="y-scale-input" step="0.1" placeholder="Auto"></label>
+                                    </div>
+                                </div>
+                                <div class="y-scale-setting-group">
+                                    <h4>V4</h4>
+                                    <div class="y-scale-inputs">
+                                        <label>Min: <input type="number" id="V4-min" class="y-scale-input" step="0.1" placeholder="Auto"></label>
+                                        <label>Max: <input type="number" id="V4-max" class="y-scale-input" step="0.1" placeholder="Auto"></label>
+                                    </div>
+                                </div>
+                                <div class="y-scale-setting-group">
+                                    <h4>V5</h4>
+                                    <div class="y-scale-inputs">
+                                        <label>Min: <input type="number" id="V5-min" class="y-scale-input" step="0.1" placeholder="Auto"></label>
+                                        <label>Max: <input type="number" id="V5-max" class="y-scale-input" step="0.1" placeholder="Auto"></label>
+                                    </div>
+                                </div>
+                                <div class="y-scale-setting-group">
+                                    <h4>V6</h4>
+                                    <div class="y-scale-inputs">
+                                        <label>Min: <input type="number" id="V6-min" class="y-scale-input" step="0.1" placeholder="Auto"></label>
+                                        <label>Max: <input type="number" id="V6-max" class="y-scale-input" step="0.1" placeholder="Auto"></label>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="modal-footer">
+                            <button onclick="applyYScaleSettings()" class="btn-primary">Apply Settings</button>
+                            <button onclick="closeYScaleSettings()" class="btn-secondary">Cancel</button>
+                        </div>
+                    </div>
                 </div>
                 <div class="plots-grid-fixed">
                     <div class="plot-container" id="container-Lead1">
@@ -620,6 +1345,20 @@
         let currentFrequency = 100;
         let currentRefreshRate = 10;
         let serialConnected = false;
+
+        // Recording and playback state
+        let isRecording = false;
+        let recordingMode = 'manual';
+        let recordingElapsed = 0;
+        let recordingDataPoints = 0;
+        let recordingCountdown = 0;
+        let recordingInterval = null;
+        
+        let isPlayback = false;
+        let playbackPosition = 0;
+        let playbackSpeed = 1.0;
+        let playbackData = null;
+        let playbackInterval = null;
 
         // Plot data storage for each signal
         let plotData = {
@@ -925,7 +1664,8 @@
             const refreshInput = document.getElementById('refresh-input');
             const startBtn = document.getElementById('start-btn');
             const stopBtn = document.getElementById('stop-btn');
-            const recordBtn = document.getElementById('record-btn');
+            const startRecordingBtn = document.getElementById('start-recording-btn');
+            const stopRecordingBtn = document.getElementById('stop-recording-btn');
             const configureBtn = document.getElementById('configure-btn');
             const sensorStatus = document.getElementById('sensor-status');
             
@@ -941,7 +1681,10 @@
                 // Update button states
                 startBtn.disabled = true;
                 stopBtn.disabled = controlsDisabled;
-                recordBtn.disabled = controlsDisabled;
+                
+                // Enable recording controls only when sensor is running
+                startRecordingBtn.disabled = controlsDisabled || isRecording;
+                stopRecordingBtn.disabled = controlsDisabled || !isRecording;
                 
                 // Update status
                 sensorStatus.textContent = 'Running';
@@ -959,7 +1702,10 @@
                 // Update button states
                 startBtn.disabled = controlsDisabled;
                 stopBtn.disabled = true;
-                recordBtn.disabled = controlsDisabled;
+                
+                // Disable recording controls when sensor is not running
+                startRecordingBtn.disabled = true;
+                stopRecordingBtn.disabled = true;
                 
                 // Update status
                 sensorStatus.textContent = 'Stopped';
@@ -1061,6 +1807,39 @@
                 currentFrequency = status.current_frequency;
                 currentRefreshRate = status.current_refresh_rate;
                 
+                // Update recording status
+                if (status.recording_status) {
+                    const wasRecording = isRecording;
+                    const wasScheduled = recordingMode === 'interval' && recordingCountdown > 0;
+                    
+                    isRecording = status.recording_status.is_recording;
+                    recordingMode = status.recording_status.mode || 'manual';
+                    recordingElapsed = Math.floor(status.recording_status.elapsed || 0);
+                    recordingDataPoints = status.recording_status.data_points || 0;
+                    recordingCountdown = Math.floor(status.recording_status.countdown || 0);
+                    
+                    // Update recording display
+                    document.getElementById('recording-elapsed').textContent = `${recordingElapsed}s`;
+                    document.getElementById('recording-data-points').textContent = recordingDataPoints;
+                    
+                    // Handle transition from scheduled to active recording
+                    if (!wasRecording && isRecording && wasScheduled) {
+                        // Scheduled recording just started
+                        addLog('Interval recording started after countdown', 'success');
+                    } else if (wasRecording && !isRecording) {
+                        // Recording stopped, clear timer
+                        if (recordingInterval) {
+                            clearInterval(recordingInterval);
+                            recordingInterval = null;
+                        }
+                    }
+                    
+                    updateRecordingUI();
+                }
+                
+                // Update playback UI based on recording data availability
+                updatePlaybackUI();
+                
                 // Update UI
                 updateUIState();
                 updateConfigDisplay();
@@ -1088,6 +1867,554 @@
             }
         }
 
+        // Recording functions
+        async function startRecording() {
+            if (!serialConnected) {
+                addLog('Cannot start recording: Serial connection not available', 'error');
+                return;
+            }
+            
+            if (!isRunning) {
+                addLog('Cannot start recording: Sensor is not running. Please start the sensor first.', 'error');
+                return;
+            }
+            
+            if (isRecording) {
+                addLog('Recording already in progress', 'error');
+                return;
+            }
+            
+            const mode = document.querySelector('input[name="recording-mode"]:checked').value;
+            let duration = null;
+            let startTime = null;
+            
+            if (mode === 'interval') {
+                // Calculate duration in seconds
+                const durationHours = parseInt(document.getElementById('duration-hours').value) || 0;
+                const durationMinutes = parseInt(document.getElementById('duration-minutes').value) || 0;
+                const durationSeconds = parseInt(document.getElementById('duration-seconds').value) || 0;
+                
+                duration = durationHours * 3600 + durationMinutes * 60 + durationSeconds;
+                
+                if (duration < 1) {
+                    addLog('Please enter a valid duration (at least 1 second)', 'error');
+                    return;
+                }
+                
+                // Calculate start time
+                const startTimeMode = document.querySelector('input[name="start-time-mode"]:checked').value;
+                
+                if (startTimeMode === 'delay') {
+                    const startHours = parseInt(document.getElementById('start-hours').value) || 0;
+                    const startMinutes = parseInt(document.getElementById('start-minutes').value) || 0;
+                    const startSeconds = parseInt(document.getElementById('start-seconds').value) || 0;
+                    
+                    const totalDelaySeconds = startHours * 3600 + startMinutes * 60 + startSeconds;
+                    
+                    if (totalDelaySeconds > 0) {
+                        const now = new Date();
+                        now.setSeconds(now.getSeconds() + totalDelaySeconds);
+                        startTime = now.toISOString();
+                    }
+                }
+                // If startTimeMode is 'now', startTime remains null (start immediately)
+            }
+            
+            try {
+                const response = await fetch('/recording/start', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        mode: mode,
+                        duration: duration,
+                        start_time: startTime
+                    })
+                });
+                
+                const result = await response.json();
+                
+                if (result.status === 'success') {
+                    // Don't immediately set isRecording = true
+                    // Let the status update handle the actual recording state
+                    recordingMode = mode;
+                    recordingElapsed = 0;
+                    recordingDataPoints = 0;
+                    recordingCountdown = 0;
+                    
+                    // Update UI based on the response message
+                    if (result.message.includes('scheduled') || result.message.includes('countdown')) {
+                        // This is a scheduled recording, don't start timer yet
+                        updateRecordingUI();
+                        updateUIState();
+                        updatePlaybackUI();
+                    } else {
+                        // This is an immediate recording
+                        isRecording = true;
+                        if (mode === 'manual') {
+                            recordingInterval = setInterval(updateRecordingTimer, 1000);
+                        }
+                        updateRecordingUI();
+                        updateUIState();
+                        updatePlaybackUI();
+                    }
+                    
+                    addLog(result.message, 'success');
+                } else {
+                    addLog(`Recording error: ${result.message}`, 'error');
+                }
+            } catch (error) {
+                addLog(`Recording error: ${error.message}`, 'error');
+            }
+        }
+
+        async function stopRecording() {
+            // Allow stopping scheduled recordings that haven't started yet
+            if (!isRecording && !(recordingMode === 'interval' && recordingCountdown > 0)) {
+                addLog('No recording in progress', 'error');
+                return;
+            }
+            
+            try {
+                const response = await fetch('/recording/stop', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    }
+                });
+                
+                const result = await response.json();
+                
+                if (result.status === 'success') {
+                    isRecording = false;
+                    
+                    // Stop recording timer
+                    if (recordingInterval) {
+                        clearInterval(recordingInterval);
+                        recordingInterval = null;
+                    }
+                    
+                    // Update UI
+                    updateRecordingUI();
+                    updateUIState(); // Update all UI state
+                    updatePlaybackUI(); // Update playback UI
+                    addLog(result.message, 'success');
+                } else {
+                    addLog(`Recording error: ${result.message}`, 'error');
+                }
+            } catch (error) {
+                addLog(`Recording error: ${error.message}`, 'error');
+            }
+        }
+
+        function updateRecordingTimer() {
+            // This function is only used for manual recordings
+            // For interval recordings, the backend provides the elapsed time
+            if (isRecording && recordingMode === 'manual') {
+                recordingElapsed++;
+                document.getElementById('recording-elapsed').textContent = `${recordingElapsed}s`;
+            }
+        }
+
+        function updateRecordingUI() {
+            const startBtn = document.getElementById('start-recording-btn');
+            const stopBtn = document.getElementById('stop-recording-btn');
+            const statusValue = document.getElementById('recording-status-value');
+            const countdownItem = document.getElementById('countdown-item');
+            const countdownValue = document.getElementById('recording-countdown');
+            
+            if (isRecording) {
+                startBtn.disabled = true;
+                stopBtn.disabled = false;
+                statusValue.textContent = `${recordingMode.charAt(0).toUpperCase() + recordingMode.slice(1)} Recording`;
+                statusValue.className = 'status-value status-running';
+                countdownItem.style.display = 'none';
+            } else {
+                // Check if we have a scheduled recording with countdown
+                if (recordingMode === 'interval' && recordingCountdown && recordingCountdown > 0) {
+                    startBtn.disabled = true;
+                    stopBtn.disabled = false;
+                    statusValue.textContent = 'Scheduled Recording';
+                    statusValue.className = 'status-value status-waiting';
+                    
+                    // Show countdown
+                    countdownItem.style.display = 'block';
+                    const minutes = Math.floor(recordingCountdown / 60);
+                    const seconds = Math.floor(recordingCountdown % 60);
+                    const hours = Math.floor(minutes / 60);
+                    const displayMinutes = minutes % 60;
+                    
+                    if (hours > 0) {
+                        countdownValue.textContent = `${hours}h ${displayMinutes}m ${seconds}s`;
+                    } else if (displayMinutes > 0) {
+                        countdownValue.textContent = `${displayMinutes}m ${seconds}s`;
+                    } else {
+                        countdownValue.textContent = `${seconds}s`;
+                    }
+                } else {
+                    // Only enable start button if sensor is running
+                    startBtn.disabled = !isRunning;
+                    stopBtn.disabled = true;
+                    statusValue.textContent = 'Not Recording';
+                    statusValue.className = 'status-value status-stopped';
+                    countdownItem.style.display = 'none';
+                }
+            }
+        }
+
+        // Playback functions
+        async function startPlayback() {
+            if (isPlayback) {
+                addLog('Playback already in progress', 'error');
+                return;
+            }
+            
+            try {
+                const response = await fetch('/recording/data');
+                const result = await response.json();
+                
+                if (result.status === 'success') {
+                    playbackData = result.data;
+                    isPlayback = true;
+                    playbackPosition = 0;
+                    
+                    // Clear all plots before starting playback
+                    clearAllPlots();
+                    
+                    // Start playback
+                    startPlaybackAnimation();
+                    
+                    // Update UI
+                    updatePlaybackUI();
+                    addLog('Playback started', 'success');
+                } else {
+                    addLog(`Playback error: ${result.message}`, 'error');
+                }
+            } catch (error) {
+                addLog(`Playback error: ${error.message}`, 'error');
+            }
+        }
+
+        function pausePlayback() {
+            if (!isPlayback) return;
+            
+            isPlayback = false;
+            
+            if (playbackInterval) {
+                clearInterval(playbackInterval);
+                playbackInterval = null;
+            }
+            
+            updatePlaybackUI();
+            addLog('Playback paused', 'info');
+        }
+
+        function restartPlayback() {
+            if (playbackInterval) {
+                clearInterval(playbackInterval);
+                playbackInterval = null;
+            }
+            
+            playbackPosition = 0;
+            isPlayback = false;
+            
+            // Clear all plots before restarting
+            clearAllPlots();
+            
+            updatePlaybackUI();
+            addLog('Playback restarted', 'info');
+        }
+
+        function startPlaybackAnimation() {
+            if (!playbackData || !playbackData.timestamps) return;
+            
+            const totalPoints = playbackData.timestamps.length;
+            // Match the refresh rate from the sensor configuration
+            const refreshRate = currentRefreshRate || 10;
+            const playbackStep = 1000 / refreshRate; // Match refresh rate
+            
+            playbackInterval = setInterval(() => {
+                if (!isPlayback) return;
+                
+                playbackPosition++;
+                
+                if (playbackPosition >= totalPoints) {
+                    // Playback finished
+                    isPlayback = false;
+                    clearInterval(playbackInterval);
+                    playbackInterval = null;
+                    addLog('Playback finished', 'info');
+                }
+                
+                // Update plots with playback data
+                updatePlaybackPlots();
+                updatePlaybackUI();
+            }, playbackStep);
+        }
+
+        function clearAllPlots() {
+            // Clear all plot data
+            plotData = {
+                timestamps: [],
+                Lead1: [],
+                Lead2: [],
+                V1: [],
+                V2: [],
+                V3: [],
+                V4: [],
+                V5: [],
+                V6: [],
+                Lead3: [],
+                aVL: [],
+                aVR: [],
+                aVF: []
+            };
+            
+            // Update all plots with empty data
+            const plotDefs = [
+                { key: 'Lead1', color: '#1f77b4', label: 'Lead I (Filtered)' },
+                { key: 'Lead2', color: '#ff7f0e', label: 'Lead II (Filtered)' },
+                { key: 'V1', color: '#2ca02c', label: 'V1 (Filtered)' },
+                { key: 'V2', color: '#17a2b8', label: 'V2 (Filtered)' },
+                { key: 'V3', color: '#e377c2', label: 'V3 (Filtered)' },
+                { key: 'V4', color: '#bcbd22', label: 'V4 (Filtered)' },
+                { key: 'V5', color: '#8c564b', label: 'V5 (Filtered)' },
+                { key: 'V6', color: '#9467bd', label: 'V6 (Filtered)' },
+                { key: 'Lead3', color: '#6f42c1', label: 'Lead III (Filtered)' },
+                { key: 'aVL', color: '#e83e8c', label: 'aVL (Filtered)' },
+                { key: 'aVR', color: '#fd7e14', label: 'aVR (Filtered)' },
+                { key: 'aVF', color: '#667eea', label: 'aVF (Filtered)' }
+            ];
+            
+            plotDefs.forEach(def => {
+                Plotly.restyle(`plot-${def.key}`, {
+                    y: [[]],
+                    x: [[]]
+                });
+            });
+        }
+
+        function updatePlaybackPlots() {
+            if (!playbackData || !playbackData.timestamps) return;
+            
+            const LTTB_TARGET_POINTS = 150; // Same as backend
+            const currentIndex = Math.min(playbackPosition, playbackData.timestamps.length - 1);
+            const endIndex = Math.min(currentIndex + 100, playbackData.timestamps.length);
+            
+            // Get the data up to current position
+            const timestamps = playbackData.timestamps.slice(0, endIndex);
+            const signals = {};
+            
+            // Apply LTTB downsampling to match normal plotting
+            // Use the first lead to get downsampled timestamps, then apply to all leads
+            const firstLead = Object.keys(playbackData.filtered_leads)[0];
+            const firstLeadData = playbackData.filtered_leads[firstLead].slice(0, endIndex);
+            
+            let downsampledTimestamps = timestamps;
+            let downsampledIndices = null;
+            
+            if (timestamps.length === firstLeadData.length && timestamps.length > 2) {
+                // Apply LTTB downsampling to get indices
+                const xy = timestamps.map((t, i) => [t, firstLeadData[i]]);
+                const downsampled = largestTriangleThreeBuckets(xy, LTTB_TARGET_POINTS);
+                downsampledTimestamps = downsampled.map(point => point[0]);
+                downsampledIndices = downsampled.map(point => timestamps.indexOf(point[0]));
+            }
+            
+            // Apply the same downsampling to all leads
+            for (const lead of Object.keys(playbackData.filtered_leads)) {
+                const leadData = playbackData.filtered_leads[lead].slice(0, endIndex);
+                if (downsampledIndices && timestamps.length === leadData.length) {
+                    // Use the same indices for consistent downsampling
+                    signals[lead] = downsampledIndices.map(idx => leadData[idx]);
+                } else {
+                    signals[lead] = leadData;
+                }
+            }
+            
+            updatePlots(downsampledTimestamps, signals);
+        }
+
+        // LTTB downsampling function (same as backend)
+        function largestTriangleThreeBuckets(data, threshold) {
+            const data_length = data.length;
+            if (threshold >= data_length || threshold === 0) {
+                return data;
+            }
+            
+            const sampled = [data[0]];
+            const every = (data_length - 2) / (threshold - 2);
+            let a = 0;
+            
+            for (let i = 0; i < threshold - 2; i++) {
+                const avg_range_start = Math.floor((i + 1) * every) + 1;
+                const avg_range_end = Math.floor((i + 2) * every) + 1;
+                const avg_range_length = Math.min(avg_range_end, data_length) - avg_range_start;
+                
+                let avg_x = 0.0, avg_y = 0.0;
+                if (avg_range_length > 0) {
+                    for (let idx = avg_range_start; idx < Math.min(avg_range_end, data_length); idx++) {
+                        avg_x += data[idx][0];
+                        avg_y += data[idx][1];
+                    }
+                    avg_x /= avg_range_length;
+                    avg_y /= avg_range_length;
+                } else {
+                    avg_x = data[a][0];
+                    avg_y = data[a][1];
+                }
+                
+                const range_offs = Math.floor((i + 0) * every) + 1;
+                const range_to = Math.min(Math.floor((i + 1) * every) + 1, data_length);
+                
+                let max_area = -1.0;
+                let max_area_point = null;
+                let next_a = null;
+                
+                for (let idx = range_offs; idx < range_to; idx++) {
+                    const area = Math.abs((data[a][0] - avg_x) * (data[idx][1] - data[a][1]) -
+                                         (data[a][0] - data[idx][0]) * (avg_y - data[a][1])) * 0.5;
+                    if (area > max_area) {
+                        max_area = area;
+                        max_area_point = data[idx];
+                        next_a = idx;
+                    }
+                }
+                
+                if (max_area_point !== null) {
+                    sampled.push(max_area_point);
+                    a = next_a;
+                }
+            }
+            
+            sampled.push(data[data_length - 1]);
+            return sampled;
+        }
+
+        function updatePlaybackUI() {
+            const playBtn = document.getElementById('play-btn');
+            const pauseBtn = document.getElementById('pause-btn');
+            const restartBtn = document.getElementById('restart-btn');
+            const statusElement = document.getElementById('playback-status');
+            const positionElement = document.getElementById('playback-position');
+            
+            // Check if recording data is available
+            const hasRecordingData = recordingDataPoints > 0;
+            
+            if (isPlayback) {
+                playBtn.disabled = true;
+                pauseBtn.disabled = false;
+                restartBtn.disabled = false;
+                statusElement.textContent = 'Playing';
+                statusElement.className = 'status-value status-running';
+            } else {
+                // Only enable play button if recording data is available
+                playBtn.disabled = !hasRecordingData;
+                pauseBtn.disabled = true;
+                restartBtn.disabled = !hasRecordingData;
+                statusElement.textContent = hasRecordingData ? 'Ready' : 'No Recording';
+                statusElement.className = hasRecordingData ? 'status-value status-connected' : 'status-value status-stopped';
+            }
+            
+            if (playbackData && playbackData.timestamps) {
+                const percentage = Math.round((playbackPosition / playbackData.timestamps.length) * 100);
+                positionElement.textContent = `${percentage}%`;
+            } else {
+                positionElement.textContent = '0%';
+            }
+            
+            // Update export button state
+            document.getElementById('export-btn').disabled = !hasRecordingData;
+        }
+
+        // Toggle BDF data entry form
+        function toggleBdfDataEntry() {
+            const format = document.getElementById('export-format').value;
+            const bdfDataEntry = document.getElementById('bdf-data-entry');
+            
+            if (format === 'bdf') {
+                bdfDataEntry.style.display = 'block';
+            } else {
+                bdfDataEntry.style.display = 'none';
+            }
+        }
+
+        // Tab switching function
+        function switchTab(tabName) {
+            // Hide all tab contents
+            const tabContents = document.querySelectorAll('.tab-content');
+            tabContents.forEach(content => {
+                content.classList.remove('active');
+            });
+            
+            // Remove active class from all tab buttons
+            const tabButtons = document.querySelectorAll('.tab-btn');
+            tabButtons.forEach(btn => {
+                btn.classList.remove('active');
+            });
+            
+            // Show selected tab content
+            const selectedContent = document.getElementById(`${tabName}-content`);
+            if (selectedContent) {
+                selectedContent.classList.add('active');
+            }
+            
+            // Add active class to selected tab button
+            const selectedButton = document.getElementById(`${tabName}-tab`);
+            if (selectedButton) {
+                selectedButton.classList.add('active');
+            }
+        }
+
+        // Export function
+        async function exportRecording() {
+            const format = document.getElementById('export-format').value;
+            
+            try {
+                let exportData = {
+                    format: format,
+                    filename: null
+                };
+                
+                // Add BDF metadata if exporting to BDF format
+                if (format === 'bdf') {
+                    exportData.bdf_metadata = {
+                        technician: document.getElementById('bdf-technician').value || 'ECG Sensor System',
+                        patientname: document.getElementById('bdf-patient-name').value || 'Test Patient',
+                        patientcode: document.getElementById('bdf-patient-code').value || '',
+                        birthdate: document.getElementById('bdf-birthdate').value || '',
+                        gender: document.getElementById('bdf-gender').value || '',
+                        patient_weight: document.getElementById('bdf-weight').value || '',
+                        patient_height: document.getElementById('bdf-height').value || '',
+                        equipment: document.getElementById('bdf-equipment').value || 'ECG Sensor with FIR filtering',
+                        hospital: document.getElementById('bdf-hospital').value || '',
+                        department: document.getElementById('bdf-department').value || '',
+                        recording_additional: document.getElementById('bdf-recording-additional').value || 'ECG recording',
+                        patient_comment: document.getElementById('bdf-patient-comment').value || ''
+                    };
+                }
+                
+                const response = await fetch('/recording/export', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(exportData)
+                });
+                
+                const result = await response.json();
+                
+                if (result.status === 'success') {
+                    addLog(result.message, 'success');
+                } else {
+                    addLog(`Export error: ${result.message}`, 'error');
+                }
+            } catch (error) {
+                addLog(`Export error: ${error.message}`, 'error');
+            }
+        }
+
         // Initialize on page load
         document.addEventListener('DOMContentLoaded', function() {
             initPlots();
@@ -1095,6 +2422,7 @@
             updateStatus();
             loadConfiguration();
             setupPlotToggles();
+            setupRecordingUI();
             
             // Update status at configured interval
             setInterval(updateStatus, statusUpdateInterval);
@@ -1116,10 +2444,153 @@
 
             document.getElementById('yscale-select').addEventListener('change', function() {
                 yScaleMode = this.value;
+                // Show/hide settings button based on mode
+                const settingsBtn = document.getElementById('y-scale-settings-btn');
+                if (yScaleMode === 'fixed') {
+                    settingsBtn.style.display = 'inline-block';
+                } else {
+                    settingsBtn.style.display = 'none';
+                }
                 // Force update of y-axis for all plots
                 updatePlots(plotData.timestamps, plotData);
             });
+            
+            // Add click handler for settings button
+            document.getElementById('y-scale-settings-btn').addEventListener('click', function() {
+                openYScaleSettings();
+            });
+            
+            // Close modal when clicking outside
+            window.addEventListener('click', function(event) {
+                const modal = document.getElementById('y-scale-settings-modal');
+                if (event.target === modal) {
+                    closeYScaleSettings();
+                }
+            });
         });
+
+        // Y-Scale Settings Functions
+        function openYScaleSettings() {
+            const modal = document.getElementById('y-scale-settings-modal');
+            modal.style.display = 'block';
+            
+            // Load current settings into the form
+            loadYScaleSettings();
+        }
+
+        function closeYScaleSettings() {
+            const modal = document.getElementById('y-scale-settings-modal');
+            modal.style.display = 'none';
+        }
+
+        function loadYScaleSettings() {
+            // Load current Y-axis ranges into the form
+            for (const lead of ['Lead1', 'Lead2', 'Lead3', 'aVR', 'aVL', 'aVF', 'V1', 'V2', 'V3', 'V4', 'V5', 'V6']) {
+                const minInput = document.getElementById(`${lead}-min`);
+                const maxInput = document.getElementById(`${lead}-max`);
+                
+                if (yAxisFixedRanges[lead]) {
+                    minInput.value = yAxisFixedRanges[lead][0] || '';
+                    maxInput.value = yAxisFixedRanges[lead][1] || '';
+                } else {
+                    minInput.value = '';
+                    maxInput.value = '';
+                }
+            }
+        }
+
+        function applyYScaleSettings() {
+            // Save settings from the form
+            for (const lead of ['Lead1', 'Lead2', 'Lead3', 'aVR', 'aVL', 'aVF', 'V1', 'V2', 'V3', 'V4', 'V5', 'V6']) {
+                const minInput = document.getElementById(`${lead}-min`);
+                const maxInput = document.getElementById(`${lead}-max`);
+                
+                const minVal = parseFloat(minInput.value);
+                const maxVal = parseFloat(maxInput.value);
+                
+                if (!isNaN(minVal) && !isNaN(maxVal) && minVal < maxVal) {
+                    yAxisFixedRanges[lead] = [minVal, maxVal];
+                } else if (minInput.value === '' && maxInput.value === '') {
+                    // Clear the range if both inputs are empty
+                    delete yAxisFixedRanges[lead];
+                } else {
+                    // Invalid input - show error
+                    alert(`Invalid range for ${lead}. Min must be less than Max, or leave both empty for auto-range.`);
+                    return;
+                }
+            }
+            
+            // Close modal and update plots
+            closeYScaleSettings();
+            updatePlots(plotData.timestamps, plotData);
+            addLog('Y-scale settings applied', 'success');
+        }
+
+        function setupRecordingUI() {
+            // Initialize UI state based on current radio button selections
+            const selectedRecordingMode = document.querySelector('input[name="recording-mode"]:checked');
+            const selectedStartTimeMode = document.querySelector('input[name="start-time-mode"]:checked');
+            
+            // Set initial state for interval config
+            const intervalConfig = document.getElementById('interval-config');
+            if (selectedRecordingMode && selectedRecordingMode.value === 'interval') {
+                intervalConfig.style.display = 'block';
+            } else {
+                intervalConfig.style.display = 'none';
+            }
+            
+            // Set initial state for start delay inputs
+            const startDelayInputs = document.getElementById('start-delay-inputs');
+            if (selectedStartTimeMode && selectedStartTimeMode.value === 'delay') {
+                startDelayInputs.style.display = 'block';
+            } else {
+                startDelayInputs.style.display = 'none';
+            }
+            
+            // Handle recording mode changes
+            document.querySelectorAll('input[name="recording-mode"]').forEach(radio => {
+                radio.addEventListener('change', function() {
+                    const intervalConfig = document.getElementById('interval-config');
+                    if (this.value === 'interval') {
+                        intervalConfig.style.display = 'block';
+                    } else {
+                        intervalConfig.style.display = 'none';
+                    }
+                });
+            });
+            
+            // Handle start time mode changes
+            document.querySelectorAll('input[name="start-time-mode"]').forEach(radio => {
+                radio.addEventListener('change', function() {
+                    const startDelayInputs = document.getElementById('start-delay-inputs');
+                    if (this.value === 'delay') {
+                        startDelayInputs.style.display = 'block';
+                    } else {
+                        startDelayInputs.style.display = 'none';
+                    }
+                });
+            });
+            
+            // Initialize BDF data entry visibility based on export format
+            const exportFormat = document.getElementById('export-format');
+            if (exportFormat.value === 'bdf') {
+                document.getElementById('bdf-data-entry').style.display = 'block';
+            } else {
+                document.getElementById('bdf-data-entry').style.display = 'none';
+            }
+            
+            // Initialize Y-scale settings button visibility
+            const yScaleSelect = document.getElementById('yscale-select');
+            const settingsBtn = document.getElementById('y-scale-settings-btn');
+            if (yScaleSelect.value === 'fixed') {
+                settingsBtn.style.display = 'inline-block';
+            } else {
+                settingsBtn.style.display = 'none';
+            }
+            
+            // Update playback UI to set initial button states
+            updatePlaybackUI();
+        }
     </script>
 </body>
 </html> 

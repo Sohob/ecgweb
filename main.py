@@ -1,7 +1,8 @@
-from fastapi import FastAPI, Request, WebSocket, WebSocketDisconnect, HTTPException
-from fastapi.responses import HTMLResponse
+from fastapi import FastAPI, Request, WebSocket, WebSocketDisconnect, HTTPException, Depends, status, Form
+from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
+from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from pydantic import BaseModel
 import serial
 import json
@@ -9,12 +10,16 @@ import asyncio
 import time
 import numpy as np
 import struct
-from typing import List, Dict, Any
+from typing import List, Dict, Any, Optional
 import os
 from config import *
 from scipy import signal
 from collections import deque
 import math
+from datetime import datetime, timedelta
+from jose import JWTError, jwt
+from passlib.context import CryptContext
+from auth_config import *
 
 app = FastAPI(title="ECG Sensor Control Server", version="1.0.0")
 
@@ -23,6 +28,67 @@ app.mount("/static", StaticFiles(directory="static"), name="static")
 
 # Templates
 templates = Jinja2Templates(directory="templates")
+
+# Password hashing
+pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+
+# Security
+security = HTTPBearer()
+
+# Session storage (in-memory for simplicity)
+active_sessions = {}
+
+def verify_password(plain_password, hashed_password):
+    """Verify a password against its hash"""
+    return pwd_context.verify(plain_password, hashed_password)
+
+def get_password_hash(password):
+    """Hash a password"""
+    return pwd_context.hash(password)
+
+def create_access_token(data: dict, expires_delta: Optional[timedelta] = None):
+    """Create a JWT access token"""
+    to_encode = data.copy()
+    if expires_delta:
+        expire = datetime.utcnow() + expires_delta
+    else:
+        expire = datetime.utcnow() + timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
+    to_encode.update({"exp": expire})
+    encoded_jwt = jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
+    return encoded_jwt
+
+def verify_token(token: str):
+    """Verify a JWT token"""
+    try:
+        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+        username: str = payload.get("sub")
+        if username is None:
+            return None
+        return username
+    except JWTError:
+        return None
+
+def get_current_user(request: Request):
+    """Get current authenticated user from session"""
+    session_token = request.cookies.get(SESSION_COOKIE_NAME)
+    if not session_token:
+        return None
+    
+    username = verify_token(session_token)
+    if not username or username not in active_sessions:
+        return None
+    
+    return username
+
+def require_auth(request: Request):
+    """Dependency to require authentication"""
+    user = get_current_user(request)
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Authentication required"
+        )
+    return user
 
 # Serial connection (will be initialized when needed)
 serial_connection = None
@@ -34,6 +100,20 @@ current_refresh_rate = DEFAULT_REFRESH_RATE
 is_running = False
 current_sampling_freq = DEFAULT_SAMPLING_FREQ
 current_recording_time = CONTINUOUS_RECORDING
+
+# Recording state and data
+recording_mode = None  # 'interval' or 'manual'
+is_recording = False
+recording_start_time = None
+recording_duration = None  # For interval recording
+recording_scheduled_start = None  # Scheduled start time for interval recording
+recording_task = None  # Background task for interval recording
+recorded_data = None  # Will be initialized after lead definitions
+
+# Playback state
+is_playback = False
+playback_position = 0
+playback_speed = 1.0
 
 # Data reading settings
 SAMPLE_SIZE = 27  # 27 bytes per sample from sensor
@@ -53,6 +133,21 @@ class ECGConstants:
 ECG_LEADS = ['Lead1', 'Lead2', 'V1', 'V2', 'V3', 'V4', 'V5', 'V6']
 DERIVED_LEADS = ['Lead3', 'aVL', 'aVR', 'aVF']
 ALL_LEADS = ECG_LEADS + DERIVED_LEADS  # All 12 channels
+
+# Initialize recording data structure
+recorded_data = {
+    'timestamps': [],
+    'measured_leads': {lead: [] for lead in ECG_LEADS},
+    'derived_leads': {lead: [] for lead in DERIVED_LEADS},
+    'filtered_leads': {lead: [] for lead in ALL_LEADS},
+    'metadata': {
+        'start_time': None,
+        'end_time': None,
+        'duration': None,
+        'sampling_frequency': None,
+        'mode': None
+    }
+}
 
 # FIR Filter Configuration
 class FIRFilterConfig:
@@ -149,6 +244,35 @@ max_data_points = 1000  # Maximum number of points to keep in memory
 class SensorConfig(BaseModel):
     frequency: int
     refresh_rate: int
+
+# Pydantic models for recording
+class RecordingConfig(BaseModel):
+    mode: str  # 'interval' or 'manual'
+    duration: Optional[int] = None  # Duration in seconds for interval recording
+    start_time: Optional[str] = None  # Start time for interval recording (ISO format)
+    
+    class Config:
+        # Allow extra fields to be ignored
+        extra = "ignore"
+    
+    def __init__(self, **data):
+        super().__init__(**data)
+        if self.mode not in ['interval', 'manual']:
+            raise ValueError("Mode must be either 'interval' or 'manual'")
+
+class ExportRequest(BaseModel):
+    format: str  # 'csv' or 'bdf'
+    filename: Optional[str] = None
+    bdf_metadata: Optional[dict] = None
+    
+    class Config:
+        # Allow extra fields to be ignored
+        extra = "ignore"
+    
+    def __init__(self, **data):
+        super().__init__(**data)
+        if self.format not in ['csv', 'bdf']:
+            raise ValueError("Format must be either 'csv' or 'bdf'")
 
 # WebSocket connections for real-time updates
 class ConnectionManager:
@@ -404,6 +528,9 @@ def process_sensor_sample(sample_data: bytes, timestamp: float):
             'filtered_leads': filtered_leads
         })
         
+        # Add data to recording if active
+        add_to_recording(timestamp, lead_data, derived_leads, filtered_leads)
+        
         # Keep only last max_data_points
         if len(plot_data['timestamps']) > max_data_points:
             plot_data['timestamps'] = plot_data['timestamps'][-max_data_points:]
@@ -640,10 +767,66 @@ async def data_generation_task():
 @app.get("/", response_class=HTMLResponse)
 async def root(request: Request):
     """Serve the main web interface"""
+    # Check if user is authenticated
+    user = get_current_user(request)
+    if not user:
+        return RedirectResponse(url="/login", status_code=302)
+    
     return templates.TemplateResponse("index.html", {"request": request})
 
+@app.get("/login", response_class=HTMLResponse)
+async def login_page(request: Request):
+    """Serve the login page"""
+    # If already authenticated, redirect to main page
+    user = get_current_user(request)
+    if user:
+        return RedirectResponse(url="/", status_code=302)
+    
+    return templates.TemplateResponse("login.html", {"request": request})
+
+@app.post("/login")
+async def login(request: Request, username: str = Form(...), password: str = Form(...)):
+    """Handle login authentication"""
+    # Check credentials
+    if username == DEFAULT_USERNAME and verify_password(password, get_password_hash(DEFAULT_PASSWORD)):
+        # Create session token
+        access_token = create_access_token(data={"sub": username})
+        
+        # Store session
+        active_sessions[username] = {
+            "token": access_token,
+            "created_at": datetime.utcnow(),
+            "last_activity": datetime.utcnow()
+        }
+        
+        # Create response with session cookie
+        response = RedirectResponse(url="/", status_code=302)
+        response.set_cookie(
+            key=SESSION_COOKIE_NAME,
+            value=access_token,
+            max_age=ACCESS_TOKEN_EXPIRE_MINUTES * 60,
+            httponly=SESSION_COOKIE_HTTPONLY,
+            secure=SESSION_COOKIE_SECURE,
+            samesite=SESSION_COOKIE_SAMESITE
+        )
+        return response
+    else:
+        # Invalid credentials
+        return RedirectResponse(url="/login?error=1", status_code=302)
+
+@app.get("/logout")
+async def logout(request: Request):
+    """Handle logout"""
+    user = get_current_user(request)
+    if user and user in active_sessions:
+        del active_sessions[user]
+    
+    response = RedirectResponse(url="/login", status_code=302)
+    response.delete_cookie(SESSION_COOKIE_NAME)
+    return response
+
 @app.post("/command/{cmd}")
-async def send_sensor_command_endpoint(cmd: str):
+async def send_sensor_command_endpoint(cmd: str, user: str = Depends(require_auth)):
     """Handle sensor commands (start, stop, record)"""
     global is_running, samples_received
     
@@ -683,7 +866,7 @@ async def send_sensor_command_endpoint(cmd: str):
     return result
 
 @app.post("/configure")
-async def configure_sensor(config: SensorConfig):
+async def configure_sensor(config: SensorConfig, user: str = Depends(require_auth)):
     """Configure the sensor settings (only when not running)"""
     global current_frequency, current_refresh_rate
     
@@ -723,7 +906,7 @@ async def configure_sensor(config: SensorConfig):
     }
 
 @app.get("/configure")
-async def get_configuration():
+async def get_configuration(user: str = Depends(require_auth)):
     """Get current sensor configuration"""
     return {
         "frequency": current_frequency,
@@ -740,7 +923,7 @@ async def get_configuration():
     }
 
 @app.get("/plot-data")
-async def get_plot_data():
+async def get_plot_data(user: str = Depends(require_auth)):
     """Get current plot data for initial load"""
     return {
         "timestamps": plot_data['timestamps'],
@@ -755,8 +938,10 @@ async def get_plot_data():
     }
 
 @app.get("/status")
-async def get_status():
+async def get_status(user: str = Depends(require_auth)):
     """Get current sensor and connection status"""
+    recording_status = get_recording_status()
+    
     return {
         "serial_status": "connected" if serial_connected else "disconnected",
         "serial_port": SERIAL_PORT,
@@ -769,21 +954,128 @@ async def get_status():
         "recording_time": current_recording_time,
         "samples_received": samples_received,
         "buffer_size": len(serial_data_buffer),
-        "fir_filters_initialized": len(fir_filters) > 0
+        "fir_filters_initialized": len(fir_filters) > 0,
+        "recording_status": recording_status
     }
 
 @app.websocket("/ws")
 async def websocket_endpoint(websocket: WebSocket):
+    # Note: WebSocket authentication would require additional implementation
+    # For now, we'll allow WebSocket connections without authentication
+    # In a production environment, you might want to implement token-based auth for WebSockets
     """WebSocket endpoint for real-time updates"""
     await manager.connect(websocket)
     try:
         while True:
-            # Keep connection alive and handle incoming messages
             data = await websocket.receive_text()
-            # Echo back for now, can be extended for bidirectional communication
-            await manager.send_personal_message(f"Message received: {data}", websocket)
     except WebSocketDisconnect:
         manager.disconnect(websocket)
+
+# Recording API endpoints
+@app.post("/recording/start")
+async def start_recording_endpoint(config: RecordingConfig, user: str = Depends(require_auth)):
+    """Start recording with specified configuration"""
+    try:
+        print(f"Received recording config: mode={config.mode}, duration={config.duration}, start_time={config.start_time}")
+        
+        success, message = start_recording(
+            mode=config.mode,
+            duration=config.duration,
+            start_time=config.start_time
+        )
+        
+        if success:
+            return {"status": "success", "message": message}
+        else:
+            return {"status": "error", "message": message}
+    except Exception as e:
+        print(f"Recording start error: {e}")
+        return {"status": "error", "message": f"Failed to start recording: {str(e)}"}
+
+@app.post("/recording/stop")
+async def stop_recording_endpoint(user: str = Depends(require_auth)):
+    """Stop current recording"""
+    try:
+        success, message = stop_recording()
+        
+        if success:
+            return {"status": "success", "message": message}
+        else:
+            return {"status": "error", "message": message}
+    except Exception as e:
+        return {"status": "error", "message": f"Failed to stop recording: {str(e)}"}
+
+@app.get("/recording/status")
+async def get_recording_status_endpoint(user: str = Depends(require_auth)):
+    """Get current recording status"""
+    try:
+        status = get_recording_status()
+        return {
+            "status": "success",
+            "recording_status": status
+        }
+    except Exception as e:
+        return {"status": "error", "message": f"Failed to get recording status: {str(e)}"}
+
+@app.post("/recording/export")
+async def export_recording_endpoint(request: ExportRequest, user: str = Depends(require_auth)):
+    """Export recorded data to specified format"""
+    try:
+        success, message = export_recording(
+            format_type=request.format,
+            filename=request.filename,
+            bdf_metadata=request.bdf_metadata
+        )
+        
+        if success:
+            return {"status": "success", "message": message}
+        else:
+            return {"status": "error", "message": message}
+    except Exception as e:
+        return {"status": "error", "message": f"Failed to export recording: {str(e)}"}
+
+@app.get("/recording/data")
+async def get_recording_data_endpoint(user: str = Depends(require_auth)):
+    """Get recorded data for playback"""
+    try:
+        global recorded_data
+        
+        if not recorded_data['timestamps']:
+            return {"status": "error", "message": "No recorded data available"}
+        
+        # Return a subset of data for efficient transmission
+        # In a real application, you might want to implement pagination
+        max_points = 1000  # Limit data points for transmission
+        
+        if len(recorded_data['timestamps']) > max_points:
+            # Downsample data
+            step = len(recorded_data['timestamps']) // max_points
+            indices = list(range(0, len(recorded_data['timestamps']), step))
+            
+            playback_data = {
+                'timestamps': [recorded_data['timestamps'][i] for i in indices],
+                'filtered_leads': {}
+            }
+            
+            for lead in ALL_LEADS:
+                playback_data['filtered_leads'][lead] = [
+                    recorded_data['filtered_leads'][lead][i] 
+                    for i in indices 
+                    if i < len(recorded_data['filtered_leads'][lead])
+                ]
+        else:
+            playback_data = {
+                'timestamps': recorded_data['timestamps'],
+                'filtered_leads': recorded_data['filtered_leads']
+            }
+        
+        return {
+            "status": "success",
+            "data": playback_data,
+            "metadata": recorded_data['metadata']
+        }
+    except Exception as e:
+        return {"status": "error", "message": f"Failed to get recording data: {str(e)}"}
 
 @app.on_event("startup")
 async def startup_event():
@@ -816,6 +1108,390 @@ async def startup_event():
 async def shutdown_event():
     """Clean up on shutdown"""
     close_serial()
+
+# Recording functions
+def start_recording(mode: str, duration: int = None, start_time: str = None):
+    """Start recording with specified mode and parameters"""
+    global is_recording, recording_mode, recording_start_time, recording_duration, recorded_data, recording_scheduled_start, recording_task
+    
+    # Check if we have a scheduled recording that needs to be cancelled
+    if recording_mode == 'interval' and recording_scheduled_start and not is_recording:
+        # Cancel the scheduled recording
+        recording_scheduled_start = None
+        recording_mode = None
+        recording_duration = None
+        print("Previous scheduled recording cancelled")
+    
+    if is_recording:
+        return False, "Recording already in progress"
+    
+    if not is_running:
+        return False, "Cannot start recording: Data reading is not active. Please start the sensor first."
+    
+    if mode not in ['interval', 'manual']:
+        return False, "Invalid recording mode"
+    
+    # Clear previous recording data
+    recorded_data = {
+        'timestamps': [],
+        'measured_leads': {lead: [] for lead in ECG_LEADS},
+        'derived_leads': {lead: [] for lead in DERIVED_LEADS},
+        'filtered_leads': {lead: [] for lead in ALL_LEADS},
+        'metadata': {
+            'start_time': None,
+            'end_time': None,
+            'duration': None,
+            'sampling_frequency': current_sampling_freq,
+            'mode': mode
+        }
+    }
+    
+    recording_mode = mode
+    recording_duration = duration
+    
+    if mode == 'manual':
+        # Manual recording starts immediately
+        is_recording = True
+        recording_start_time = time.time()
+        recording_scheduled_start = None
+        
+        # Set metadata
+        recorded_data['metadata']['start_time'] = recording_start_time
+        recorded_data['metadata']['sampling_frequency'] = current_sampling_freq
+        recorded_data['metadata']['mode'] = mode
+        
+        print(f"Manual recording started immediately")
+        return True, "Manual recording started immediately"
+    
+    elif mode == 'interval':
+        # Interval recording - check if we need to schedule a start time
+        if start_time:
+            # Parse the start time
+            try:
+                scheduled_start = time.time()
+                if start_time != 'now':
+                    # Calculate delay from start_time (which is an ISO timestamp)
+                    from datetime import datetime
+                    start_datetime = datetime.fromisoformat(start_time.replace('Z', '+00:00'))
+                    scheduled_start = start_datetime.timestamp()
+                
+                current_time = time.time()
+                delay_seconds = scheduled_start - current_time
+                
+                if delay_seconds > 0:
+                    # Schedule recording to start later
+                    recording_scheduled_start = scheduled_start
+                    is_recording = False
+                    recording_start_time = None
+                    
+                    print(f"Interval recording scheduled to start in {delay_seconds:.1f} seconds")
+                    return True, f"Interval recording scheduled to start in {delay_seconds:.1f} seconds"
+                else:
+                    # Start immediately if scheduled time has passed
+                    is_recording = True
+                    recording_start_time = time.time()
+                    recording_scheduled_start = None
+                    
+                    # Set metadata
+                    recorded_data['metadata']['start_time'] = recording_start_time
+                    recorded_data['metadata']['sampling_frequency'] = current_sampling_freq
+                    recorded_data['metadata']['mode'] = mode
+                    
+                    print(f"Interval recording started immediately (scheduled time has passed)")
+                    return True, "Interval recording started immediately"
+                    
+            except Exception as e:
+                return False, f"Invalid start time format: {str(e)}"
+        else:
+            # No start time specified, start immediately
+            is_recording = True
+            recording_start_time = time.time()
+            recording_scheduled_start = None
+            
+            # Set metadata
+            recorded_data['metadata']['start_time'] = recording_start_time
+            recorded_data['metadata']['sampling_frequency'] = current_sampling_freq
+            recorded_data['metadata']['mode'] = mode
+            
+            print(f"Interval recording started immediately")
+            return True, "Interval recording started immediately"
+
+def stop_recording():
+    """Stop current recording"""
+    global is_recording, recording_start_time, recorded_data, recording_scheduled_start, recording_mode
+    
+    # Check if we have a scheduled recording that hasn't started yet
+    if recording_mode == 'interval' and recording_scheduled_start and not is_recording:
+        recording_scheduled_start = None
+        recording_mode = None
+        recording_duration = None
+        print("Scheduled recording cancelled")
+        return True, "Scheduled recording cancelled"
+    
+    if not is_recording:
+        return False, "No recording in progress"
+    
+    recording_end_time = time.time()
+    duration = recording_end_time - recording_start_time
+    
+    # Update metadata
+    recorded_data['metadata']['end_time'] = recording_end_time
+    recorded_data['metadata']['duration'] = duration
+    
+    is_recording = False
+    recording_start_time = None
+    recording_scheduled_start = None
+    
+    print(f"Recording stopped. Duration: {duration:.2f} seconds")
+    return True, f"Recording stopped. Duration: {duration:.2f} seconds"
+
+def add_to_recording(timestamp: float, lead_data: dict, derived_leads: dict, filtered_leads: dict):
+    """Add data point to current recording"""
+    global recorded_data, is_recording, recording_start_time, recording_scheduled_start
+    
+    # Check if we need to start recording (for scheduled interval recording)
+    if recording_mode == 'interval' and recording_scheduled_start and not is_recording:
+        current_time = time.time()
+        if current_time >= recording_scheduled_start:
+            # Start recording now
+            is_recording = True
+            recording_start_time = current_time
+            recording_scheduled_start = None
+            
+            # Set metadata
+            recorded_data['metadata']['start_time'] = recording_start_time
+            recorded_data['metadata']['sampling_frequency'] = current_sampling_freq
+            recorded_data['metadata']['mode'] = recording_mode
+            
+            print(f"Interval recording started after countdown")
+    
+    if not is_recording:
+        return
+    
+    # Check if interval recording should stop based on duration
+    if recording_mode == 'interval' and recording_duration and recording_start_time:
+        elapsed = time.time() - recording_start_time
+        if elapsed >= recording_duration:
+            stop_recording()
+            return
+    
+    # Add data to recording
+    recorded_data['timestamps'].append(timestamp)
+    
+    for lead in ECG_LEADS:
+        if lead in lead_data:
+            recorded_data['measured_leads'][lead].append(lead_data[lead])
+    
+    for lead in DERIVED_LEADS:
+        if lead in derived_leads:
+            recorded_data['derived_leads'][lead].append(derived_leads[lead])
+    
+    for lead in ALL_LEADS:
+        if lead in filtered_leads:
+            recorded_data['filtered_leads'][lead].append(filtered_leads[lead])
+
+def get_recording_status():
+    """Get current recording status"""
+    global is_recording, recording_mode, recording_start_time, recording_duration, recorded_data, recording_scheduled_start
+    
+    data_points = len(recorded_data['timestamps'])
+    
+    if not is_recording:
+        # Check if we have a scheduled recording
+        if recording_mode == 'interval' and recording_scheduled_start:
+            current_time = time.time()
+            countdown = recording_scheduled_start - current_time
+            if countdown > 0:
+                return {
+                    'is_recording': False,
+                    'mode': recording_mode,
+                    'elapsed': 0,
+                    'duration': recording_duration,
+                    'data_points': data_points,
+                    'scheduled_start': recording_scheduled_start,
+                    'countdown': countdown
+                }
+        
+        return {
+            'is_recording': False,
+            'mode': recorded_data['metadata']['mode'] if recorded_data['metadata']['mode'] else None,
+            'elapsed': 0,
+            'duration': recorded_data['metadata']['duration'],
+            'data_points': data_points
+        }
+    
+    elapsed = time.time() - recording_start_time
+    
+    return {
+        'is_recording': True,
+        'mode': recording_mode,
+        'elapsed': elapsed,
+        'duration': recording_duration,
+        'data_points': data_points
+    }
+
+def export_recording(format_type: str, filename: str = None, bdf_metadata: dict = None):
+    """Export recorded data to CSV or BDF format"""
+    global recorded_data
+    
+    if not recorded_data['timestamps']:
+        return False, "No recorded data to export"
+    
+    if format_type not in ['csv', 'bdf']:
+        return False, "Unsupported export format"
+    
+    if not filename:
+        timestamp = time.strftime("%Y%m%d_%H%M%S")
+        filename = f"ecg_recording_{timestamp}.{format_type}"
+    
+    try:
+        if format_type == 'csv':
+            return export_to_csv(filename)
+        elif format_type == 'bdf':
+            return export_to_bdf(filename, bdf_metadata)
+    except Exception as e:
+        return False, f"Export error: {str(e)}"
+
+def export_to_csv(filename: str):
+    """Export recorded data to CSV format"""
+    import csv
+    import os
+    
+    filepath = os.path.join('recordings', filename)
+    os.makedirs('recordings', exist_ok=True)
+    
+    with open(filepath, 'w', newline='') as csvfile:
+        writer = csv.writer(csvfile)
+        
+        # Write header
+        header = ['Timestamp'] + ALL_LEADS
+        writer.writerow(header)
+        
+        # Write data
+        for i, timestamp in enumerate(recorded_data['timestamps']):
+            row = [timestamp]
+            for lead in ALL_LEADS:
+                if i < len(recorded_data['filtered_leads'][lead]):
+                    row.append(recorded_data['filtered_leads'][lead][i])
+                else:
+                    row.append('')
+            writer.writerow(row)
+    
+    return True, f"Data exported to {filepath}"
+
+def export_to_bdf(filename: str, bdf_metadata: dict = None):
+    """Export recorded data to BDF format using pyedflib"""
+    import os
+    import pyedflib
+    from datetime import datetime
+    
+    filepath = os.path.join('recordings', filename)
+    os.makedirs('recordings', exist_ok=True)
+    
+    try:
+        # Get recording metadata
+        start_time = recorded_data['metadata']['start_time']
+        duration = recorded_data['metadata']['duration']
+        sampling_freq = recorded_data['metadata']['sampling_frequency']
+        
+        # Convert start time to datetime
+        if start_time:
+            start_datetime = datetime.fromtimestamp(start_time)
+        else:
+            start_datetime = datetime.now()
+        
+        # Calculate number of samples
+        num_samples = len(recorded_data['timestamps'])
+        if num_samples == 0:
+            return False, "No data to export"
+        
+        # Create BDF file
+        f = pyedflib.EdfWriter(filepath, len(ALL_LEADS))
+        
+        # Convert birthdate format if provided
+        birthdate = ''
+        if bdf_metadata and bdf_metadata.get('birthdate'):
+            try:
+                # Convert from ISO format (YYYY-MM-DD) to BDF format (DD MMM YYYY)
+                date_obj = datetime.strptime(bdf_metadata['birthdate'], '%Y-%m-%d')
+                birthdate = date_obj.strftime('%d %b %Y')
+            except ValueError:
+                # If conversion fails, use empty string
+                birthdate = ''
+        
+        # Set header information with user-provided metadata or defaults
+        header = {
+            'technician': bdf_metadata.get('technician', 'ECG Sensor') if bdf_metadata else 'ECG Sensor',
+            'recording_additional': bdf_metadata.get('recording_additional', 'ECG recording') if bdf_metadata else 'ECG recording',
+            'patientname': bdf_metadata.get('patientname', 'Test Patient') if bdf_metadata else 'Test Patient',
+            'patient_additional': bdf_metadata.get('patient_additional', '') if bdf_metadata else '',
+            'patientcode': bdf_metadata.get('patientcode', '') if bdf_metadata else '',
+            'birthdate': birthdate,
+            'gender': bdf_metadata.get('gender', '') if bdf_metadata else '',
+            'patient_weight': bdf_metadata.get('patient_weight', '') if bdf_metadata else '',
+            'patient_height': bdf_metadata.get('patient_height', '') if bdf_metadata else '',
+            'patient_comment': bdf_metadata.get('patient_comment', '') if bdf_metadata else '',
+            'admincode': bdf_metadata.get('admincode', '') if bdf_metadata else '',
+            'equipment': bdf_metadata.get('equipment', 'ECG Sensor') if bdf_metadata else 'ECG Sensor',
+            'hospital_additional': bdf_metadata.get('hospital_additional', '') if bdf_metadata else '',
+            'hospital': bdf_metadata.get('hospital', '') if bdf_metadata else '',
+            'department_additional': bdf_metadata.get('department_additional', '') if bdf_metadata else '',
+            'department': bdf_metadata.get('department', '') if bdf_metadata else '',
+            'startdate': start_datetime,
+        }
+        
+        f.setHeader(header)
+        
+        # Set minimal channel information for testing
+        channel_info = []
+        for lead in ALL_LEADS:
+            info = {
+                'label': lead,
+                'dimension': 'mV',
+                'sample_rate': sampling_freq,
+                'physical_max': 1000.0,
+                'physical_min': -1000.0,
+                'digital_max': 32767,
+                'digital_min': -32768,
+                'prefilter': '',
+                'transducer': ''
+            }
+            channel_info.append(info)
+        
+        f.setSignalHeaders(channel_info)
+        
+        # Prepare data for each channel
+        import numpy as np
+        
+        # Write all channels at once for better performance
+        all_data = []
+        for lead in ALL_LEADS:
+            lead_data = recorded_data['filtered_leads'][lead]
+            
+            # Ensure all channels have the same length
+            if len(lead_data) < num_samples:
+                # Pad with zeros if necessary
+                lead_data = lead_data + [0.0] * (num_samples - len(lead_data))
+            elif len(lead_data) > num_samples:
+                # Truncate if necessary
+                lead_data = lead_data[:num_samples]
+            
+            # Convert to numpy array
+            data_array = np.array(lead_data, dtype=np.float64)
+            all_data.append(data_array)
+        
+        # Write all samples at once
+        f.writeSamples(all_data)
+        
+        # Close the file
+        f.close()
+        
+        return True, f"Data exported to {filepath} (BDF format)"
+        
+    except ImportError:
+        return False, "pyedflib library not available. Please install it with: pip install pyedflib"
+    except Exception as e:
+        return False, f"BDF export error: {str(e)}"
 
 if __name__ == "__main__":
     import uvicorn
