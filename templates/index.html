@@ -887,6 +887,10 @@
                         <span class="status-value" id="sensor-status">Stopped</span>
                     </div>
                     <div class="status-item">
+                        <span class="status-label">Heart Rate:</span>
+                        <span class="status-value" id="heart-rate">0 BPM</span>
+                    </div>
+                    <div class="status-item">
                         <span class="status-label">Samples Received:</span>
                         <span class="status-value" id="samplesReceived">0</span>
                     </div>
@@ -1082,6 +1086,9 @@
                             <button class="control-btn" id="export-btn" onclick="exportRecording()" disabled>
                                 📁 Export
                             </button>
+                            <button class="control-btn" id="download-csv-btn" onclick="downloadCSV()" disabled>
+                                ⬇️ Download CSV
+                            </button>
                         </div>
                         
                         <!-- BDF Data Entry Tab -->
@@ -1161,14 +1168,14 @@
                     <label><input type="checkbox" class="plot-toggle" data-plot="Lead1" checked> Lead I</label>
                     <label><input type="checkbox" class="plot-toggle" data-plot="Lead2" checked> Lead II</label>
                     <label><input type="checkbox" class="plot-toggle" data-plot="Lead3" checked> Lead III</label>
-                    <label><input type="checkbox" class="plot-toggle" data-plot="aVR"> aVR</label>
+                    <label><input type="checkbox" class="plot-toggle" data-plot="aVR" checked> aVR</label>
                     <label><input type="checkbox" class="plot-toggle" data-plot="V1" checked> V1</label>
-                    <label><input type="checkbox" class="plot-toggle" data-plot="V2"> V2</label>
-                    <label><input type="checkbox" class="plot-toggle" data-plot="V3"> V3</label>
+                    <label><input type="checkbox" class="plot-toggle" data-plot="V2" checked> V2</label>
+                    <label><input type="checkbox" class="plot-toggle" data-plot="V3" checked> V3</label>
                     <label><input type="checkbox" class="plot-toggle" data-plot="aVL" checked> aVL</label>
-                    <label><input type="checkbox" class="plot-toggle" data-plot="V4"> V4</label>
-                    <label><input type="checkbox" class="plot-toggle" data-plot="V5"> V5</label>
-                    <label><input type="checkbox" class="plot-toggle" data-plot="V6"> V6</label>
+                    <label><input type="checkbox" class="plot-toggle" data-plot="V4" checked> V4</label>
+                    <label><input type="checkbox" class="plot-toggle" data-plot="V5" checked> V5</label>
+                    <label><input type="checkbox" class="plot-toggle" data-plot="V6" checked> V6</label>
                     <label><input type="checkbox" class="plot-toggle" data-plot="aVF" checked> aVF</label>
                 </div>
                 
@@ -1429,7 +1436,7 @@
                             tickfont: { size: 9 }
                         },
                         yaxis: {
-                            title: 'Amplitude',
+                            title: 'Amplitude (mV)',
                             showgrid: true,
                             gridcolor: '#e1e5e9',
                             titlefont: { size: 10 },
@@ -1475,7 +1482,16 @@
 
         // Show/hide plots based on checkboxes
         function setupPlotToggles() {
+            // Initialize all plots as visible since all checkboxes are checked
             document.querySelectorAll('.plot-toggle').forEach(cb => {
+                const plotKey = cb.getAttribute('data-plot');
+                const container = document.getElementById(`container-${plotKey}`);
+                if (cb.checked) {
+                    container.style.visibility = '';
+                } else {
+                    container.style.visibility = 'hidden';
+                }
+                
                 cb.addEventListener('change', function() {
                     const plotKey = this.getAttribute('data-plot');
                     const container = document.getElementById(`container-${plotKey}`);
@@ -1572,6 +1588,9 @@
                     }
                     if (data.buffer_size !== undefined) {
                         document.getElementById('bufferSize').textContent = `${data.buffer_size} bytes`;
+                    }
+                    if (data.heart_rate !== undefined) {
+                        document.getElementById('heart-rate').textContent = `${data.heart_rate} BPM`;
                     }
                     break;
                     
@@ -2326,6 +2345,8 @@
             
             // Update export button state
             document.getElementById('export-btn').disabled = !hasRecordingData;
+            // Update download CSV button state
+            document.getElementById('download-csv-btn').disabled = !hasRecordingData;
         }
 
         // Toggle BDF data entry form
@@ -2590,6 +2611,37 @@
             
             // Update playback UI to set initial button states
             updatePlaybackUI();
+        }
+
+        // Download CSV function
+        async function downloadCSV() {
+            // Direct download using a hidden link
+            try {
+                const response = await fetch('/recording/download-csv');
+                if (!response.ok) {
+                    addLog('No recorded data available for download', 'error');
+                    return;
+                }
+                const blob = await response.blob();
+                // Extract filename from Content-Disposition header
+                let filename = 'ecg_recording.csv';
+                const disposition = response.headers.get('Content-Disposition');
+                if (disposition && disposition.indexOf('filename=') !== -1) {
+                    filename = disposition.split('filename=')[1].replace(/"/g, '');
+                }
+                const url = window.URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.style.display = 'none';
+                a.href = url;
+                a.download = filename;
+                document.body.appendChild(a);
+                a.click();
+                window.URL.revokeObjectURL(url);
+                document.body.removeChild(a);
+                addLog('CSV downloaded: ' + filename, 'success');
+            } catch (error) {
+                addLog('CSV download failed: ' + error.message, 'error');
+            }
         }
     </script>
 </body>

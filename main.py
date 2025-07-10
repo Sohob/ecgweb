@@ -1,5 +1,5 @@
 from fastapi import FastAPI, Request, WebSocket, WebSocketDisconnect, HTTPException, Depends, status, Form
-from fastapi.responses import HTMLResponse, RedirectResponse
+from fastapi.responses import HTMLResponse, RedirectResponse, FileResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
@@ -20,6 +20,7 @@ from datetime import datetime, timedelta
 from jose import JWTError, jwt
 from passlib.context import CryptContext
 from auth_config import *
+import io
 
 app = FastAPI(title="ECG Sensor Control Server", version="1.0.0")
 
@@ -236,7 +237,8 @@ plot_data = {
     'measured_leads': {lead: [] for lead in ECG_LEADS},
     'derived_leads': {lead: [] for lead in DERIVED_LEADS},
     'filtered_leads': {lead: [] for lead in ALL_LEADS},  # Filtered data for all leads
-    'raw_samples': []  # Store raw sample data for debugging
+    'raw_samples': [],  # Store raw sample data for debugging
+    'heart_rate': 0     # Store calculated heart rate (BPM)
 }
 max_data_points = 1000  # Maximum number of points to keep in memory
 
@@ -472,9 +474,18 @@ def apply_fir_filters(lead_data: Dict[str, float], derived_leads: Dict[str, floa
     
     return filtered_data
 
+# --- Heart rate calculation state ---
+_hr_window_seconds = 60
+_hr_last_calc_time = None
+_hr_peak_times = []
+_hr_prev_value = 0
+_hr_prev_sign = 0
+_hr_min_peak_height = 0.9  # mV, adjust as needed for your signal
+
 def process_sensor_sample(sample_data: bytes, timestamp: float):
     """Process a complete 27-byte sample from the sensor"""
     global samples_received, plot_data
+    global _hr_last_calc_time, _hr_peak_times, _hr_prev_value, _hr_prev_sign
     
     if len(sample_data) != SAMPLE_SIZE:
         print(f"Warning: Received incomplete sample of {len(sample_data)} bytes")
@@ -541,6 +552,23 @@ def process_sensor_sample(sample_data: bytes, timestamp: float):
             for lead_name in ALL_LEADS:
                 plot_data['filtered_leads'][lead_name] = plot_data['filtered_leads'][lead_name][-max_data_points:]
             plot_data['raw_samples'] = plot_data['raw_samples'][-max_data_points:]
+        
+        # --- Heart rate calculation (simple threshold peak detection on Lead1) ---
+        lead_name = 'Lead1'
+        value = filtered_leads[lead_name]
+        v = value if isinstance(value, float) else float(value)
+        # Detect upward zero-crossing (simple peak detection)
+        sign = 1 if v > _hr_min_peak_height else 0
+        if _hr_prev_sign == 0 and sign == 1:
+            _hr_peak_times.append(timestamp)
+        _hr_prev_sign = sign
+        # Remove peaks outside the window
+        _hr_peak_times = [t for t in _hr_peak_times if t >= timestamp - _hr_window_seconds]
+        # Calculate BPM every second
+        if _hr_last_calc_time is None or timestamp - _hr_last_calc_time > 1.0:
+            beats = len(_hr_peak_times)
+            plot_data['heart_rate'] = int(beats * (60 / _hr_window_seconds))
+            _hr_last_calc_time = timestamp
         
     except Exception as e:
         print(f"Error processing sample #{samples_received}: {e}")
@@ -729,6 +757,7 @@ async def data_generation_task():
                     "refresh_rate": current_refresh_rate,
                     "samples_received": samples_received,
                     "buffer_size": len(serial_data_buffer),
+                    "heart_rate": plot_data['heart_rate'],
                     "downsampled_timestamps": downsampled_timestamps,
                 }
                 # Add all 12 leads to the plot_update
@@ -754,7 +783,8 @@ async def data_generation_task():
                     "frequency": current_frequency,
                     "refresh_rate": current_refresh_rate,
                     "samples_received": samples_received,
-                    "buffer_size": len(serial_data_buffer)
+                    "buffer_size": len(serial_data_buffer),
+                    "heart_rate": plot_data['heart_rate']
                 }
             # Broadcast plot data to all connected clients
             await manager.broadcast(json.dumps(plot_update))
@@ -934,7 +964,8 @@ async def get_plot_data(user: str = Depends(require_auth)):
         "derived_leads": plot_data['derived_leads'],
         "filtered_leads": plot_data['filtered_leads'],
         "frequency": current_frequency,
-        "refresh_rate": current_refresh_rate
+        "refresh_rate": current_refresh_rate,
+        "heart_rate": plot_data['heart_rate']
     }
 
 @app.get("/status")
@@ -1076,6 +1107,37 @@ async def get_recording_data_endpoint(user: str = Depends(require_auth)):
         }
     except Exception as e:
         return {"status": "error", "message": f"Failed to get recording data: {str(e)}"}
+
+@app.get("/recording/download-csv")
+async def download_csv(user: str = Depends(require_auth)):
+    """Download the latest recorded data as a CSV file with a unique name."""
+    global recorded_data
+    import csv
+    import time
+    if not recorded_data['timestamps']:
+        from fastapi import HTTPException
+        raise HTTPException(status_code=404, detail="No recorded data available")
+    # Generate unique filename
+    timestamp = time.strftime("%Y%m%d_%H%M%S")
+    filename = f"ecg_recording_{timestamp}.csv"
+    # Write CSV to in-memory buffer
+    buffer = io.StringIO()
+    writer = csv.writer(buffer)
+    header = ['Timestamp'] + ALL_LEADS
+    writer.writerow(header)
+    for i, ts in enumerate(recorded_data['timestamps']):
+        row = [ts]
+        for lead in ALL_LEADS:
+            if i < len(recorded_data['filtered_leads'][lead]):
+                row.append(recorded_data['filtered_leads'][lead][i])
+            else:
+                row.append('')
+        writer.writerow(row)
+    buffer.seek(0)
+    # Return as downloadable file
+    return StreamingResponse(buffer, media_type='text/csv', headers={
+        'Content-Disposition': f'attachment; filename="{filename}"'
+    })
 
 @app.on_event("startup")
 async def startup_event():

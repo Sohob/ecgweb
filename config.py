@@ -58,7 +58,7 @@ AUTO_RELOAD = False          # Enable auto-reload for development
 import platform
 if platform.system() == "Windows":
     # Windows serial port examples
-    SERIAL_PORT = "COM6"  # Change to your COM port
+    SERIAL_PORT = "COM7"  # Change to your COM port
 elif platform.system() == "Darwin":
     # macOS serial port examples
     SERIAL_PORT = "/dev/tty.usbserial-0001"  # Change to your port
