@@ -150,65 +150,86 @@ recorded_data = {
     }
 }
 
-# IIR Filter Configuration
-class IIRFilterConfig:
-    HPF_CUTOFF = 0.5   # High-pass cutoff frequency in Hz
-    LPF_CUTOFF = 150.0 # Low-pass cutoff frequency in Hz
-    FILTER_ORDER = 4   # Butterworth filter order (2 or 4 recommended)
+# FIR Filter Configuration
+class FIRFilterConfig:
+    CUTOFF_FREQ = 150.0  # Cutoff frequency in Hz
+    FILTER_ORDER = 41    # Filter order (number of coefficients)
+    NYQUIST_FREQ = 500.0 # Nyquist frequency (should be > 2 * cutoff_freq)
 
-# Online IIR Filter Implementation
-class OnlineIIRFilter:
-    """Online IIR bandpass filter for real-time processing (Butterworth)"""
-    def __init__(self, b, a):
-        self.b = b
-        self.a = a
-        self.zi = None  # Filter state
-        self.reset()
-
+# FIR Filter Implementation
+class OnlineFIRFilter:
+    """Online FIR filter implementation for real-time processing"""
+    
+    def __init__(self, coefficients: np.ndarray):
+        self.coefficients = coefficients
+        self.buffer = deque(maxlen=len(coefficients))
+        # Initialize buffer with zeros
+        for _ in range(len(coefficients)):
+            self.buffer.append(0.0)
+    
     def filter(self, input_value: float) -> float:
-        y, self.zi = signal.lfilter(self.b, self.a, [input_value], zi=self.zi)
-        return y[0]
-
+        """Apply FIR filter to a single input value"""
+        # Add new input to buffer
+        self.buffer.append(input_value)
+        
+        # Apply convolution
+        result = 0.0
+        for i, coeff in enumerate(self.coefficients):
+            result += coeff * list(self.buffer)[-(i+1)]
+        
+        return result
+    
     def reset(self):
-        # Initialize filter state for step response at zero
-        self.zi = signal.lfilter_zi(self.b, self.a) * 0.0
+        """Reset filter buffer"""
+        self.buffer.clear()
+        for _ in range(len(self.coefficients)):
+            self.buffer.append(0.0)
 
-# Initialize IIR filters for all channels
-iir_filters = {}
+# Initialize FIR filters for all channels
+fir_filters = {}
 
-def initialize_iir_filters(sampling_rate: float):
-    """
-    Initialize IIR bandpass filters for all ECG channels.
-    This function dynamically recalculates filter coefficients and state
-    whenever the sampling rate changes.
-    """
-    global iir_filters
-    nyquist = 0.5 * sampling_rate
-    low = IIRFilterConfig.HPF_CUTOFF / nyquist
-    high = IIRFilterConfig.LPF_CUTOFF / nyquist
-    if high >= 1.0:
-        print(f"Warning: LPF cutoff {IIRFilterConfig.LPF_CUTOFF} Hz is too high for sampling rate {sampling_rate} Hz")
-        high = 0.99
-    if low <= 0.0:
-        print(f"Warning: HPF cutoff {IIRFilterConfig.HPF_CUTOFF} Hz is too low for sampling rate {sampling_rate} Hz")
-        low = 0.001
-    b, a = signal.butter(IIRFilterConfig.FILTER_ORDER, [low, high], btype='band')
-    print(f"IIR Filter Design:")
+def initialize_fir_filters(sampling_rate: float):
+    """Initialize FIR low-pass filters for all ECG channels"""
+    global fir_filters
+    
+    # Design FIR low-pass filter
+    # Normalize cutoff frequency to Nyquist frequency
+    nyquist_freq = sampling_rate / 2.0
+    normalized_cutoff = FIRFilterConfig.CUTOFF_FREQ / nyquist_freq
+    
+    # Ensure cutoff frequency is valid
+    if normalized_cutoff >= 1.0:
+        print(f"Warning: Cutoff frequency {FIRFilterConfig.CUTOFF_FREQ} Hz is too high for sampling rate {sampling_rate} Hz")
+        normalized_cutoff = 0.9  # Use 90% of Nyquist frequency as fallback
+    
+    # Design FIR filter using scipy
+    coefficients = signal.firwin(
+        numtaps=FIRFilterConfig.FILTER_ORDER,
+        cutoff=normalized_cutoff,
+        window='hamming',
+        pass_zero='lowpass'
+    )
+    
+    print(f"FIR Filter Design:")
     print(f"  Sampling Rate: {sampling_rate} Hz")
-    print(f"  Bandpass: {IIRFilterConfig.HPF_CUTOFF}–{IIRFilterConfig.LPF_CUTOFF} Hz")
-    print(f"  Normalized: {low:.4f}–{high:.4f}")
-    print(f"  Order: {IIRFilterConfig.FILTER_ORDER}")
-    iir_filters.clear()
+    print(f"  Cutoff Frequency: {FIRFilterConfig.CUTOFF_FREQ} Hz")
+    print(f"  Normalized Cutoff: {normalized_cutoff:.3f}")
+    print(f"  Filter Order: {FIRFilterConfig.FILTER_ORDER}")
+    print(f"  Number of Coefficients: {len(coefficients)}")
+    
+    # Create filters for all channels
+    fir_filters.clear()
     for lead_name in ALL_LEADS:
-        iir_filters[lead_name] = OnlineIIRFilter(b, a)
-    print(f"Initialized IIR filters for {len(ALL_LEADS)} channels: {ALL_LEADS}")
+        fir_filters[lead_name] = OnlineFIRFilter(coefficients)
+    
+    print(f"Initialized FIR filters for {len(ALL_LEADS)} channels: {ALL_LEADS}")
 
-def reset_iir_filters():
-    """Reset all IIR filter states."""
-    global iir_filters
-    for filter_obj in iir_filters.values():
+def reset_fir_filters():
+    """Reset all FIR filters"""
+    global fir_filters
+    for filter_obj in fir_filters.values():
         filter_obj.reset()
-    print("All IIR filters reset")
+    print("All FIR filters reset")
 
 # Plotting data storage - now includes filtered data
 plot_data = {
@@ -431,20 +452,26 @@ def calculate_derived_leads(lead1_voltage: float, lead2_voltage: float) -> Dict[
         'aVF': avf
     }
 
-def apply_iir_filters(lead_data: Dict[str, float], derived_leads: Dict[str, float]) -> Dict[str, float]:
-    """Apply IIR filters to all leads and return filtered values"""
-    global iir_filters
+def apply_fir_filters(lead_data: Dict[str, float], derived_leads: Dict[str, float]) -> Dict[str, float]:
+    """Apply FIR filters to all leads and return filtered values"""
+    global fir_filters
+    
     filtered_data = {}
+    
+    # Apply filters to measured leads
     for lead_name in ECG_LEADS:
-        if lead_name in iir_filters:
-            filtered_data[lead_name] = iir_filters[lead_name].filter(lead_data[lead_name])
+        if lead_name in fir_filters:
+            filtered_data[lead_name] = fir_filters[lead_name].filter(lead_data[lead_name])
         else:
-            filtered_data[lead_name] = lead_data[lead_name]
+            filtered_data[lead_name] = lead_data[lead_name]  # No filter available
+    
+    # Apply filters to derived leads
     for lead_name in DERIVED_LEADS:
-        if lead_name in iir_filters:
-            filtered_data[lead_name] = iir_filters[lead_name].filter(derived_leads[lead_name])
+        if lead_name in fir_filters:
+            filtered_data[lead_name] = fir_filters[lead_name].filter(derived_leads[lead_name])
         else:
-            filtered_data[lead_name] = derived_leads[lead_name]
+            filtered_data[lead_name] = derived_leads[lead_name]  # No filter available
+    
     return filtered_data
 
 # --- Heart rate calculation state ---
@@ -483,8 +510,8 @@ def process_sensor_sample(sample_data: bytes, timestamp: float):
         # Calculate derived leads
         derived_leads = calculate_derived_leads(lead_data['Lead1'], lead_data['Lead2'])
         
-        # Apply IIR filters to all leads
-        filtered_leads = apply_iir_filters(lead_data, derived_leads)
+        # Apply FIR filters to all leads
+        filtered_leads = apply_fir_filters(lead_data, derived_leads)
         
         # Store data for plotting
         plot_data['timestamps'].append(timestamp)
@@ -844,9 +871,11 @@ async def send_sensor_command_endpoint(cmd: str, user: str = Depends(require_aut
             return {"status": "error", "message": "Sensor is already running"}
         is_running = True
         samples_received = 0  # Reset sample counter
-        # Initialize IIR filters with current sampling frequency
-        initialize_iir_filters(current_sampling_freq)
-        reset_iir_filters()
+        
+        # Initialize FIR filters with current sampling frequency
+        initialize_fir_filters(current_sampling_freq)
+        reset_fir_filters()
+        
         result = send_sensor_command(cmd, current_frequency, current_refresh_rate)
     elif cmd == "stop":
         is_running = False
@@ -956,7 +985,7 @@ async def get_status(user: str = Depends(require_auth)):
         "recording_time": current_recording_time,
         "samples_received": samples_received,
         "buffer_size": len(serial_data_buffer),
-        "iir_filters_initialized": len(iir_filters) > 0,
+        "fir_filters_initialized": len(fir_filters) > 0,
         "recording_status": recording_status
     }
 
@@ -1124,9 +1153,8 @@ async def startup_event():
     print(f"ECG leads: {ECG_LEADS}")
     print(f"Derived leads: {DERIVED_LEADS}")
     print(f"All leads (12 channels): {ALL_LEADS}")
-    print(f"IIR filter HPF cutoff: {IIRFilterConfig.HPF_CUTOFF} Hz")
-    print(f"IIR filter LPF cutoff: {IIRFilterConfig.LPF_CUTOFF} Hz")
-    print(f"IIR filter order: {IIRFilterConfig.FILTER_ORDER}")
+    print(f"FIR filter cutoff: {FIRFilterConfig.CUTOFF_FREQ} Hz")
+    print(f"FIR filter order: {FIRFilterConfig.FILTER_ORDER}")
     
     if init_serial():
         print(f"Serial connection established on {SERIAL_PORT}")
