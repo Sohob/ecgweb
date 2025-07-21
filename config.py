@@ -29,7 +29,7 @@ FREE_RUNNING = 0x00           # Free running mode (not external trigger)
 EXTERNAL_TRIGGER = 0xAA       # Wait for external trigger
 
 # Sensor Configuration
-DEFAULT_FREQUENCY = 100       # Default sampling frequency in Hz
+DEFAULT_FREQUENCY = 1000       # Default sampling frequency in Hz
 DEFAULT_REFRESH_RATE = 10     # Default refresh rate in Hz
 MIN_FREQUENCY = 250             # Minimum allowed frequency
 MAX_FREQUENCY = 8000          # Maximum allowed frequency

@@ -99,7 +99,6 @@ serial_connected = False
 current_frequency = DEFAULT_FREQUENCY
 current_refresh_rate = DEFAULT_REFRESH_RATE
 is_running = False
-current_sampling_freq = DEFAULT_SAMPLING_FREQ
 current_recording_time = CONTINUOUS_RECORDING
 
 # Recording state and data
@@ -363,12 +362,12 @@ def send_serial_command(command_byte, data_value=0):
 
 def send_sensor_command(command_type, frequency=None, refresh_rate=None):
     """Send appropriate sensor command based on command type"""
-    global current_sampling_freq, current_recording_time
+    global current_frequency, current_recording_time
     
     if command_type == "start":
         # Set sampling frequency first
         if frequency:
-            current_sampling_freq = frequency
+            current_frequency = frequency
             freq_result = send_serial_command(CMD_SET_SAMPLING_FREQ, frequency)
             if freq_result["status"] != "success":
                 return freq_result
@@ -609,26 +608,6 @@ def read_serial_data():
         # Reset buffer on error
         serial_data_buffer.clear()
 
-def generate_sinusoidal_data():
-    """Generate sinusoidal wave data for testing"""
-    current_time = time.time()
-    
-    # Generate three different sinusoidal waves
-    # Signal 1: Main frequency wave
-    freq1 = current_frequency
-    signal1 = np.sin(2 * np.pi * freq1 * current_time) + 0.5 * np.sin(2 * np.pi * freq1 * 2 * current_time)
-    
-    # Signal 2: Higher frequency component
-    freq2 = current_frequency * 1.5
-    signal2 = 0.7 * np.sin(2 * np.pi * freq2 * current_time) + 0.3 * np.cos(2 * np.pi * freq2 * 0.5 * current_time)
-    
-    # Signal 3: Lower frequency component with noise
-    freq3 = current_frequency * 0.3
-    noise = 0.1 * np.random.normal(0, 1)
-    signal3 = 0.8 * np.sin(2 * np.pi * freq3 * current_time) + noise
-    
-    return current_time, signal1, signal2, signal3
-
 def update_plot_data(timestamp, signal1, signal2, signal3):
     """Update plot data and maintain maximum data points"""
     global plot_data
@@ -692,7 +671,7 @@ def largest_triangle_three_buckets(data: list, threshold: int):
 
 async def serial_reading_task():
     """Background task for reading serial data from sensor"""
-    global is_running, current_sampling_freq
+    global is_running, current_frequency
     
     while True:
         if is_running and serial_connected:
@@ -701,7 +680,7 @@ async def serial_reading_task():
             
             # Sleep based on sampling frequency to avoid overwhelming the system
             # We read as fast as possible but process at the sampling rate
-            await asyncio.sleep(1.0 / (current_sampling_freq * 2))  # Read twice as fast as sampling
+            await asyncio.sleep(1.0 / (current_frequency * 2))  # Read twice as fast as sampling
         else:
             # When not running, sleep longer to reduce CPU usage
             await asyncio.sleep(0.1)
@@ -770,22 +749,7 @@ async def data_generation_task():
                 plot_update["lead3"] = downsampled['Lead3'][-1] if downsampled['Lead3'] else 0
                 plot_update["avl"] = downsampled['aVL'][-1] if downsampled['aVL'] else 0
                 plot_update["avf"] = downsampled['aVF'][-1] if downsampled['aVF'] else 0
-            else:
-                # Generate test data when no sensor data available
-                timestamp, signal1, signal2, signal3 = generate_sinusoidal_data()
-                update_plot_data(timestamp, signal1, signal2, signal3)
-                plot_update = {
-                    "type": "plot_data",
-                    "timestamp": timestamp,
-                    "signal1": float(signal1),
-                    "signal2": float(signal2),
-                    "signal3": float(signal3),
-                    "frequency": current_frequency,
-                    "refresh_rate": current_refresh_rate,
-                    "samples_received": samples_received,
-                    "buffer_size": len(serial_data_buffer),
-                    "heart_rate": plot_data['heart_rate']
-                }
+
             # Broadcast plot data to all connected clients
             await manager.broadcast(json.dumps(plot_update))
             # Sleep based on refresh rate
@@ -872,8 +836,8 @@ async def send_sensor_command_endpoint(cmd: str, user: str = Depends(require_aut
         is_running = True
         samples_received = 0  # Reset sample counter
         
-        # Initialize FIR filters with current sampling frequency
-        initialize_fir_filters(current_sampling_freq)
+        # Initialize FIR filters with current frequency
+        initialize_fir_filters(current_frequency)
         reset_fir_filters()
         
         result = send_sensor_command(cmd, current_frequency, current_refresh_rate)
@@ -949,7 +913,7 @@ async def get_configuration(user: str = Depends(require_auth)):
         "default_frequency": DEFAULT_FREQUENCY,
         "default_refresh_rate": DEFAULT_REFRESH_RATE,
         "sampling_frequency_options": SAMPLING_FREQUENCY_OPTIONS,
-        "default_sampling_frequency": DEFAULT_SAMPLING_FREQ
+        "default_sampling_frequency": DEFAULT_FREQUENCY
     }
 
 @app.get("/plot-data")
@@ -981,7 +945,7 @@ async def get_status(user: str = Depends(require_auth)):
         "current_frequency": current_frequency,
         "current_refresh_rate": current_refresh_rate,
         "is_running": is_running,
-        "sampling_frequency": current_sampling_freq,
+        "sampling_frequency": current_frequency,
         "recording_time": current_recording_time,
         "samples_received": samples_received,
         "buffer_size": len(serial_data_buffer),
@@ -1147,7 +1111,7 @@ async def startup_event():
     print(f"Baud rate: {BAUD_RATE}")
     print(f"Default frequency: {DEFAULT_FREQUENCY} Hz")
     print(f"Default refresh rate: {DEFAULT_REFRESH_RATE} Hz")
-    print(f"Default sampling frequency: {DEFAULT_SAMPLING_FREQ} Hz")
+    print(f"Default sampling frequency: {DEFAULT_FREQUENCY} Hz")
     print(f"Available sampling frequencies: {SAMPLING_FREQUENCY_OPTIONS} Hz")
     print(f"Sample size: {SAMPLE_SIZE} bytes")
     print(f"ECG leads: {ECG_LEADS}")
@@ -1203,7 +1167,7 @@ def start_recording(mode: str, duration: int = None, start_time: str = None):
             'start_time': None,
             'end_time': None,
             'duration': None,
-            'sampling_frequency': current_sampling_freq,
+            'sampling_frequency': current_frequency,
             'mode': mode
         }
     }
@@ -1219,7 +1183,7 @@ def start_recording(mode: str, duration: int = None, start_time: str = None):
         
         # Set metadata
         recorded_data['metadata']['start_time'] = recording_start_time
-        recorded_data['metadata']['sampling_frequency'] = current_sampling_freq
+        recorded_data['metadata']['sampling_frequency'] = current_frequency
         recorded_data['metadata']['mode'] = mode
         
         print(f"Manual recording started immediately")
@@ -1256,7 +1220,7 @@ def start_recording(mode: str, duration: int = None, start_time: str = None):
                     
                     # Set metadata
                     recorded_data['metadata']['start_time'] = recording_start_time
-                    recorded_data['metadata']['sampling_frequency'] = current_sampling_freq
+                    recorded_data['metadata']['sampling_frequency'] = current_frequency
                     recorded_data['metadata']['mode'] = mode
                     
                     print(f"Interval recording started immediately (scheduled time has passed)")
@@ -1272,7 +1236,7 @@ def start_recording(mode: str, duration: int = None, start_time: str = None):
             
             # Set metadata
             recorded_data['metadata']['start_time'] = recording_start_time
-            recorded_data['metadata']['sampling_frequency'] = current_sampling_freq
+            recorded_data['metadata']['sampling_frequency'] = current_frequency
             recorded_data['metadata']['mode'] = mode
             
             print(f"Interval recording started immediately")
@@ -1322,7 +1286,7 @@ def add_to_recording(timestamp: float, lead_data: dict, derived_leads: dict, fil
             
             # Set metadata
             recorded_data['metadata']['start_time'] = recording_start_time
-            recorded_data['metadata']['sampling_frequency'] = current_sampling_freq
+            recorded_data['metadata']['sampling_frequency'] = current_frequency
             recorded_data['metadata']['mode'] = recording_mode
             
             print(f"Interval recording started after countdown")
