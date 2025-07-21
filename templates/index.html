@@ -1083,6 +1083,10 @@
                                 <option value="csv">CSV Format</option>
                                 <option value="bdf">BDF Format</option>
                             </select>
+                            <select id="csv-data-type" class="config-input" style="max-width: 120px;">
+                                <option value="filtered">Filtered</option>
+                                <option value="raw">Raw</option>
+                            </select>
                             <button class="control-btn" id="export-btn" onclick="exportRecording()" disabled>
                                 📁 Export
                             </button>
@@ -2617,7 +2621,8 @@
         async function downloadCSV() {
             // Direct download using a hidden link
             try {
-                const response = await fetch('/recording/download-csv');
+                const type = document.getElementById('csv-data-type').value;
+                const response = await fetch(`/recording/download-csv?type=${type}`);
                 if (!response.ok) {
                     addLog('No recorded data available for download', 'error');
                     return;

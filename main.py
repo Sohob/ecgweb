@@ -1,4 +1,4 @@
-from fastapi import FastAPI, Request, WebSocket, WebSocketDisconnect, HTTPException, Depends, status, Form
+from fastapi import FastAPI, Request, WebSocket, WebSocketDisconnect, HTTPException, Depends, status, Form, Query
 from fastapi.responses import HTMLResponse, RedirectResponse, FileResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
@@ -140,6 +140,7 @@ recorded_data = {
     'measured_leads': {lead: [] for lead in ECG_LEADS},
     'derived_leads': {lead: [] for lead in DERIVED_LEADS},
     'filtered_leads': {lead: [] for lead in ALL_LEADS},
+    'raw_samples': [],
     'metadata': {
         'start_time': None,
         'end_time': None,
@@ -1073,8 +1074,8 @@ async def get_recording_data_endpoint(user: str = Depends(require_auth)):
         return {"status": "error", "message": f"Failed to get recording data: {str(e)}"}
 
 @app.get("/recording/download-csv")
-async def download_csv(user: str = Depends(require_auth)):
-    """Download the latest recorded data as a CSV file with a unique name."""
+async def download_csv(user: str = Depends(require_auth), type: str = Query('filtered', enum=['filtered', 'raw'])):
+    """Download the latest recorded data as a CSV file with a unique name. Supports filtered or raw data."""
     global recorded_data
     import csv
     import time
@@ -1083,22 +1084,31 @@ async def download_csv(user: str = Depends(require_auth)):
         raise HTTPException(status_code=404, detail="No recorded data available")
     # Generate unique filename
     timestamp = time.strftime("%Y%m%d_%H%M%S")
-    filename = f"ecg_recording_{timestamp}.csv"
-    # Write CSV to in-memory buffer
+    filename = f"ecg_recording_{timestamp}_{type}.csv"
     buffer = io.StringIO()
     writer = csv.writer(buffer)
-    header = ['Timestamp'] + ALL_LEADS
-    writer.writerow(header)
-    for i, ts in enumerate(recorded_data['timestamps']):
-        row = [ts]
-        for lead in ALL_LEADS:
-            if i < len(recorded_data['filtered_leads'][lead]):
-                row.append(recorded_data['filtered_leads'][lead][i])
-            else:
-                row.append('')
-        writer.writerow(row)
+    if type == 'filtered':
+        header = ['Timestamp'] + ALL_LEADS
+        writer.writerow(header)
+        for i, ts in enumerate(recorded_data['timestamps']):
+            row = [ts]
+            for lead in ALL_LEADS:
+                if i < len(recorded_data['filtered_leads'][lead]):
+                    row.append(recorded_data['filtered_leads'][lead][i])
+                else:
+                    row.append('')
+            writer.writerow(row)
+    else:  # raw
+        # Write header: Timestamp + measured leads
+        header = ['Timestamp'] + ECG_LEADS
+        writer.writerow(header)
+        for entry in recorded_data.get('raw_samples', []):
+            row = [entry.get('timestamp', '')]
+            lead_data = entry.get('lead_data', {})
+            for lead in ECG_LEADS:
+                row.append(lead_data.get(lead, ''))
+            writer.writerow(row)
     buffer.seek(0)
-    # Return as downloadable file
     return StreamingResponse(buffer, media_type='text/csv', headers={
         'Content-Disposition': f'attachment; filename="{filename}"'
     })
@@ -1163,6 +1173,7 @@ def start_recording(mode: str, duration: int = None, start_time: str = None):
         'measured_leads': {lead: [] for lead in ECG_LEADS},
         'derived_leads': {lead: [] for lead in DERIVED_LEADS},
         'filtered_leads': {lead: [] for lead in ALL_LEADS},
+        'raw_samples': [],
         'metadata': {
             'start_time': None,
             'end_time': None,
@@ -1315,6 +1326,18 @@ def add_to_recording(timestamp: float, lead_data: dict, derived_leads: dict, fil
     for lead in ALL_LEADS:
         if lead in filtered_leads:
             recorded_data['filtered_leads'][lead].append(filtered_leads[lead])
+
+    # Add raw sample for raw export
+    if 'raw_samples' in plot_data and len(plot_data['raw_samples']) > 0:
+        # Find the latest sample for this timestamp
+        last_raw = plot_data['raw_samples'][-1]
+        if abs(last_raw['timestamp'] - timestamp) < 1e-3:  # match timestamp
+            recorded_data['raw_samples'].append(last_raw)
+        else:
+            # fallback: store timestamp and lead_data
+            recorded_data['raw_samples'].append({'timestamp': timestamp, 'lead_data': lead_data})
+    else:
+        recorded_data['raw_samples'].append({'timestamp': timestamp, 'lead_data': lead_data})
 
 def get_recording_status():
     """Get current recording status"""
