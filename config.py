@@ -29,7 +29,7 @@ FREE_RUNNING = 0x00           # Free running mode (not external trigger)
 EXTERNAL_TRIGGER = 0xAA       # Wait for external trigger
 
 # Sensor Configuration
-DEFAULT_FREQUENCY = 100       # Default sampling frequency in Hz
+DEFAULT_FREQUENCY = 1000       # Default sampling frequency in Hz
 DEFAULT_REFRESH_RATE = 10     # Default refresh rate in Hz
 MIN_FREQUENCY = 250             # Minimum allowed frequency
 MAX_FREQUENCY = 8000          # Maximum allowed frequency
@@ -58,7 +58,7 @@ AUTO_RELOAD = False          # Enable auto-reload for development
 import platform
 if platform.system() == "Windows":
     # Windows serial port examples
-    SERIAL_PORT = "COM7"  # Change to your COM port
+    SERIAL_PORT = "COM3"  # Change to your COM port
 elif platform.system() == "Darwin":
     # macOS serial port examples
     SERIAL_PORT = "/dev/tty.usbserial-0001"  # Change to your port

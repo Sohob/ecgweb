@@ -1,4 +1,4 @@
-from fastapi import FastAPI, Request, WebSocket, WebSocketDisconnect, HTTPException, Depends, status, Form
+from fastapi import FastAPI, Request, WebSocket, WebSocketDisconnect, HTTPException, Depends, status, Form, Query
 from fastapi.responses import HTMLResponse, RedirectResponse, FileResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
@@ -99,7 +99,6 @@ serial_connected = False
 current_frequency = DEFAULT_FREQUENCY
 current_refresh_rate = DEFAULT_REFRESH_RATE
 is_running = False
-current_sampling_freq = DEFAULT_SAMPLING_FREQ
 current_recording_time = CONTINUOUS_RECORDING
 
 # Recording state and data
@@ -141,6 +140,7 @@ recorded_data = {
     'measured_leads': {lead: [] for lead in ECG_LEADS},
     'derived_leads': {lead: [] for lead in DERIVED_LEADS},
     'filtered_leads': {lead: [] for lead in ALL_LEADS},
+    'raw_samples': [],
     'metadata': {
         'start_time': None,
         'end_time': None,
@@ -150,86 +150,57 @@ recorded_data = {
     }
 }
 
-# FIR Filter Configuration
-class FIRFilterConfig:
-    CUTOFF_FREQ = 150.0  # Cutoff frequency in Hz
-    FILTER_ORDER = 41    # Filter order (number of coefficients)
-    NYQUIST_FREQ = 500.0 # Nyquist frequency (should be > 2 * cutoff_freq)
+# IIR Filter Configuration
+class IIRFilterConfig:
+    CUTOFF_FREQ = 120.0  # Cutoff frequency in Hz
+    FILTER_ORDER = 4     # 4th order Butterworth
 
-# FIR Filter Implementation
-class OnlineFIRFilter:
-    """Online FIR filter implementation for real-time processing"""
-    
-    def __init__(self, coefficients: np.ndarray):
-        self.coefficients = coefficients
-        self.buffer = deque(maxlen=len(coefficients))
-        # Initialize buffer with zeros
-        for _ in range(len(coefficients)):
-            self.buffer.append(0.0)
-    
+# IIR Filter Implementation (Online, per-sample)
+class OnlineIIRFilter:
+    """Online IIR filter implementation for real-time processing (Butterworth)"""
+    def __init__(self, sos: np.ndarray):
+        self.sos = sos
+        self.zi = np.zeros((sos.shape[0], 2))  # Initial state for sosfilt
     def filter(self, input_value: float) -> float:
-        """Apply FIR filter to a single input value"""
-        # Add new input to buffer
-        self.buffer.append(input_value)
-        
-        # Apply convolution
-        result = 0.0
-        for i, coeff in enumerate(self.coefficients):
-            result += coeff * list(self.buffer)[-(i+1)]
-        
-        return result
-    
+        # Apply filter to a single value, maintaining state
+        y, self.zi = signal.sosfilt(self.sos, [input_value], zi=self.zi)
+        return y[0]
     def reset(self):
-        """Reset filter buffer"""
-        self.buffer.clear()
-        for _ in range(len(self.coefficients)):
-            self.buffer.append(0.0)
+        self.zi = np.zeros((self.sos.shape[0], 2))
 
-# Initialize FIR filters for all channels
-fir_filters = {}
+# Initialize IIR filters for all channels
+IIR_filters = {}
 
-def initialize_fir_filters(sampling_rate: float):
-    """Initialize FIR low-pass filters for all ECG channels"""
-    global fir_filters
-    
-    # Design FIR low-pass filter
-    # Normalize cutoff frequency to Nyquist frequency
+def initialize_iir_filters(sampling_rate: float):
+    """Initialize IIR low-pass filters for all ECG channels"""
+    global IIR_filters
     nyquist_freq = sampling_rate / 2.0
-    normalized_cutoff = FIRFilterConfig.CUTOFF_FREQ / nyquist_freq
-    
-    # Ensure cutoff frequency is valid
+    normalized_cutoff = IIRFilterConfig.CUTOFF_FREQ / nyquist_freq
     if normalized_cutoff >= 1.0:
-        print(f"Warning: Cutoff frequency {FIRFilterConfig.CUTOFF_FREQ} Hz is too high for sampling rate {sampling_rate} Hz")
-        normalized_cutoff = 0.9  # Use 90% of Nyquist frequency as fallback
-    
-    # Design FIR filter using scipy
-    coefficients = signal.firwin(
-        numtaps=FIRFilterConfig.FILTER_ORDER,
-        cutoff=normalized_cutoff,
-        window='hamming',
-        pass_zero='lowpass'
+        print(f"Warning: Cutoff frequency too high for sampling rate {sampling_rate} Hz")
+        normalized_cutoff = 0.9
+    # Design Butterworth IIR filter (sos for stability)
+    sos = signal.butter(
+        N=IIRFilterConfig.FILTER_ORDER,
+        Wn=normalized_cutoff,
+        btype='low',
+        output='sos'
     )
-    
-    print(f"FIR Filter Design:")
+    print(f"IIR Filter Design:")
     print(f"  Sampling Rate: {sampling_rate} Hz")
-    print(f"  Cutoff Frequency: {FIRFilterConfig.CUTOFF_FREQ} Hz")
+    print(f"  Cutoff Frequency: {IIRFilterConfig.CUTOFF_FREQ} Hz")
     print(f"  Normalized Cutoff: {normalized_cutoff:.3f}")
-    print(f"  Filter Order: {FIRFilterConfig.FILTER_ORDER}")
-    print(f"  Number of Coefficients: {len(coefficients)}")
-    
-    # Create filters for all channels
-    fir_filters.clear()
+    print(f"  Filter Order: {IIRFilterConfig.FILTER_ORDER}")
+    IIR_filters.clear()
     for lead_name in ALL_LEADS:
-        fir_filters[lead_name] = OnlineFIRFilter(coefficients)
-    
-    print(f"Initialized FIR filters for {len(ALL_LEADS)} channels: {ALL_LEADS}")
+        IIR_filters[lead_name] = OnlineIIRFilter(sos)
+    print(f"Initialized IIR filters for {len(ALL_LEADS)} channels: {ALL_LEADS}")
 
-def reset_fir_filters():
-    """Reset all FIR filters"""
-    global fir_filters
-    for filter_obj in fir_filters.values():
+def reset_iir_filters():
+    global IIR_filters
+    for filter_obj in IIR_filters.values():
         filter_obj.reset()
-    print("All FIR filters reset")
+    print("All IIR filters reset")
 
 # Plotting data storage - now includes filtered data
 plot_data = {
@@ -363,12 +334,12 @@ def send_serial_command(command_byte, data_value=0):
 
 def send_sensor_command(command_type, frequency=None, refresh_rate=None):
     """Send appropriate sensor command based on command type"""
-    global current_sampling_freq, current_recording_time
+    global current_frequency, current_recording_time
     
     if command_type == "start":
         # Set sampling frequency first
         if frequency:
-            current_sampling_freq = frequency
+            current_frequency = frequency
             freq_result = send_serial_command(CMD_SET_SAMPLING_FREQ, frequency)
             if freq_result["status"] != "success":
                 return freq_result
@@ -452,26 +423,20 @@ def calculate_derived_leads(lead1_voltage: float, lead2_voltage: float) -> Dict[
         'aVF': avf
     }
 
-def apply_fir_filters(lead_data: Dict[str, float], derived_leads: Dict[str, float]) -> Dict[str, float]:
-    """Apply FIR filters to all leads and return filtered values"""
-    global fir_filters
-    
+def apply_iir_filters(lead_data: Dict[str, float], derived_leads: Dict[str, float]) -> Dict[str, float]:
+    """Apply IIR filters to all leads and return filtered values"""
+    global IIR_filters
     filtered_data = {}
-    
-    # Apply filters to measured leads
     for lead_name in ECG_LEADS:
-        if lead_name in fir_filters:
-            filtered_data[lead_name] = fir_filters[lead_name].filter(lead_data[lead_name])
+        if lead_name in IIR_filters:
+            filtered_data[lead_name] = IIR_filters[lead_name].filter(lead_data[lead_name])
         else:
-            filtered_data[lead_name] = lead_data[lead_name]  # No filter available
-    
-    # Apply filters to derived leads
+            filtered_data[lead_name] = lead_data[lead_name]
     for lead_name in DERIVED_LEADS:
-        if lead_name in fir_filters:
-            filtered_data[lead_name] = fir_filters[lead_name].filter(derived_leads[lead_name])
+        if lead_name in IIR_filters:
+            filtered_data[lead_name] = IIR_filters[lead_name].filter(derived_leads[lead_name])
         else:
-            filtered_data[lead_name] = derived_leads[lead_name]  # No filter available
-    
+            filtered_data[lead_name] = derived_leads[lead_name]
     return filtered_data
 
 # --- Heart rate calculation state ---
@@ -510,8 +475,8 @@ def process_sensor_sample(sample_data: bytes, timestamp: float):
         # Calculate derived leads
         derived_leads = calculate_derived_leads(lead_data['Lead1'], lead_data['Lead2'])
         
-        # Apply FIR filters to all leads
-        filtered_leads = apply_fir_filters(lead_data, derived_leads)
+        # Apply IIR filters to all leads
+        filtered_leads = apply_iir_filters(lead_data, derived_leads)
         
         # Store data for plotting
         plot_data['timestamps'].append(timestamp)
@@ -609,26 +574,6 @@ def read_serial_data():
         # Reset buffer on error
         serial_data_buffer.clear()
 
-def generate_sinusoidal_data():
-    """Generate sinusoidal wave data for testing"""
-    current_time = time.time()
-    
-    # Generate three different sinusoidal waves
-    # Signal 1: Main frequency wave
-    freq1 = current_frequency
-    signal1 = np.sin(2 * np.pi * freq1 * current_time) + 0.5 * np.sin(2 * np.pi * freq1 * 2 * current_time)
-    
-    # Signal 2: Higher frequency component
-    freq2 = current_frequency * 1.5
-    signal2 = 0.7 * np.sin(2 * np.pi * freq2 * current_time) + 0.3 * np.cos(2 * np.pi * freq2 * 0.5 * current_time)
-    
-    # Signal 3: Lower frequency component with noise
-    freq3 = current_frequency * 0.3
-    noise = 0.1 * np.random.normal(0, 1)
-    signal3 = 0.8 * np.sin(2 * np.pi * freq3 * current_time) + noise
-    
-    return current_time, signal1, signal2, signal3
-
 def update_plot_data(timestamp, signal1, signal2, signal3):
     """Update plot data and maintain maximum data points"""
     global plot_data
@@ -692,7 +637,7 @@ def largest_triangle_three_buckets(data: list, threshold: int):
 
 async def serial_reading_task():
     """Background task for reading serial data from sensor"""
-    global is_running, current_sampling_freq
+    global is_running, current_frequency
     
     while True:
         if is_running and serial_connected:
@@ -701,7 +646,7 @@ async def serial_reading_task():
             
             # Sleep based on sampling frequency to avoid overwhelming the system
             # We read as fast as possible but process at the sampling rate
-            await asyncio.sleep(1.0 / (current_sampling_freq * 2))  # Read twice as fast as sampling
+            await asyncio.sleep(1.0 / (current_frequency * 2))  # Read twice as fast as sampling
         else:
             # When not running, sleep longer to reduce CPU usage
             await asyncio.sleep(0.1)
@@ -770,22 +715,7 @@ async def data_generation_task():
                 plot_update["lead3"] = downsampled['Lead3'][-1] if downsampled['Lead3'] else 0
                 plot_update["avl"] = downsampled['aVL'][-1] if downsampled['aVL'] else 0
                 plot_update["avf"] = downsampled['aVF'][-1] if downsampled['aVF'] else 0
-            else:
-                # Generate test data when no sensor data available
-                timestamp, signal1, signal2, signal3 = generate_sinusoidal_data()
-                update_plot_data(timestamp, signal1, signal2, signal3)
-                plot_update = {
-                    "type": "plot_data",
-                    "timestamp": timestamp,
-                    "signal1": float(signal1),
-                    "signal2": float(signal2),
-                    "signal3": float(signal3),
-                    "frequency": current_frequency,
-                    "refresh_rate": current_refresh_rate,
-                    "samples_received": samples_received,
-                    "buffer_size": len(serial_data_buffer),
-                    "heart_rate": plot_data['heart_rate']
-                }
+
             # Broadcast plot data to all connected clients
             await manager.broadcast(json.dumps(plot_update))
             # Sleep based on refresh rate
@@ -872,9 +802,9 @@ async def send_sensor_command_endpoint(cmd: str, user: str = Depends(require_aut
         is_running = True
         samples_received = 0  # Reset sample counter
         
-        # Initialize FIR filters with current sampling frequency
-        initialize_fir_filters(current_sampling_freq)
-        reset_fir_filters()
+        # Initialize IIR filters with current frequency
+        initialize_iir_filters(current_frequency)
+        reset_iir_filters()
         
         result = send_sensor_command(cmd, current_frequency, current_refresh_rate)
     elif cmd == "stop":
@@ -949,7 +879,7 @@ async def get_configuration(user: str = Depends(require_auth)):
         "default_frequency": DEFAULT_FREQUENCY,
         "default_refresh_rate": DEFAULT_REFRESH_RATE,
         "sampling_frequency_options": SAMPLING_FREQUENCY_OPTIONS,
-        "default_sampling_frequency": DEFAULT_SAMPLING_FREQ
+        "default_sampling_frequency": DEFAULT_FREQUENCY
     }
 
 @app.get("/plot-data")
@@ -981,11 +911,11 @@ async def get_status(user: str = Depends(require_auth)):
         "current_frequency": current_frequency,
         "current_refresh_rate": current_refresh_rate,
         "is_running": is_running,
-        "sampling_frequency": current_sampling_freq,
+        "sampling_frequency": current_frequency,
         "recording_time": current_recording_time,
         "samples_received": samples_received,
         "buffer_size": len(serial_data_buffer),
-        "fir_filters_initialized": len(fir_filters) > 0,
+        "iir_filters_initialized": len(IIR_filters) > 0,
         "recording_status": recording_status
     }
 
@@ -1109,8 +1039,8 @@ async def get_recording_data_endpoint(user: str = Depends(require_auth)):
         return {"status": "error", "message": f"Failed to get recording data: {str(e)}"}
 
 @app.get("/recording/download-csv")
-async def download_csv(user: str = Depends(require_auth)):
-    """Download the latest recorded data as a CSV file with a unique name."""
+async def download_csv(user: str = Depends(require_auth), type: str = Query('filtered', enum=['filtered', 'raw'])):
+    """Download the latest recorded data as a CSV file with a unique name. Supports filtered or raw data."""
     global recorded_data
     import csv
     import time
@@ -1119,22 +1049,31 @@ async def download_csv(user: str = Depends(require_auth)):
         raise HTTPException(status_code=404, detail="No recorded data available")
     # Generate unique filename
     timestamp = time.strftime("%Y%m%d_%H%M%S")
-    filename = f"ecg_recording_{timestamp}.csv"
-    # Write CSV to in-memory buffer
+    filename = f"ecg_recording_{timestamp}_{type}.csv"
     buffer = io.StringIO()
     writer = csv.writer(buffer)
-    header = ['Timestamp'] + ALL_LEADS
-    writer.writerow(header)
-    for i, ts in enumerate(recorded_data['timestamps']):
-        row = [ts]
-        for lead in ALL_LEADS:
-            if i < len(recorded_data['filtered_leads'][lead]):
-                row.append(recorded_data['filtered_leads'][lead][i])
-            else:
-                row.append('')
-        writer.writerow(row)
+    if type == 'filtered':
+        header = ['Timestamp'] + ALL_LEADS
+        writer.writerow(header)
+        for i, ts in enumerate(recorded_data['timestamps']):
+            row = [ts]
+            for lead in ALL_LEADS:
+                if i < len(recorded_data['filtered_leads'][lead]):
+                    row.append(recorded_data['filtered_leads'][lead][i])
+                else:
+                    row.append('')
+            writer.writerow(row)
+    else:  # raw
+        # Write header: Timestamp + measured leads
+        header = ['Timestamp'] + ECG_LEADS
+        writer.writerow(header)
+        for entry in recorded_data.get('raw_samples', []):
+            row = [entry.get('timestamp', '')]
+            lead_data = entry.get('lead_data', {})
+            for lead in ECG_LEADS:
+                row.append(lead_data.get(lead, ''))
+            writer.writerow(row)
     buffer.seek(0)
-    # Return as downloadable file
     return StreamingResponse(buffer, media_type='text/csv', headers={
         'Content-Disposition': f'attachment; filename="{filename}"'
     })
@@ -1147,14 +1086,14 @@ async def startup_event():
     print(f"Baud rate: {BAUD_RATE}")
     print(f"Default frequency: {DEFAULT_FREQUENCY} Hz")
     print(f"Default refresh rate: {DEFAULT_REFRESH_RATE} Hz")
-    print(f"Default sampling frequency: {DEFAULT_SAMPLING_FREQ} Hz")
+    print(f"Default sampling frequency: {DEFAULT_FREQUENCY} Hz")
     print(f"Available sampling frequencies: {SAMPLING_FREQUENCY_OPTIONS} Hz")
     print(f"Sample size: {SAMPLE_SIZE} bytes")
     print(f"ECG leads: {ECG_LEADS}")
     print(f"Derived leads: {DERIVED_LEADS}")
     print(f"All leads (12 channels): {ALL_LEADS}")
-    print(f"FIR filter cutoff: {FIRFilterConfig.CUTOFF_FREQ} Hz")
-    print(f"FIR filter order: {FIRFilterConfig.FILTER_ORDER}")
+    print(f"IIR filter cutoff: {IIRFilterConfig.CUTOFF_FREQ} Hz")
+    print(f"IIR filter order: {IIRFilterConfig.FILTER_ORDER}")
     
     if init_serial():
         print(f"Serial connection established on {SERIAL_PORT}")
@@ -1199,11 +1138,12 @@ def start_recording(mode: str, duration: int = None, start_time: str = None):
         'measured_leads': {lead: [] for lead in ECG_LEADS},
         'derived_leads': {lead: [] for lead in DERIVED_LEADS},
         'filtered_leads': {lead: [] for lead in ALL_LEADS},
+        'raw_samples': [],
         'metadata': {
             'start_time': None,
             'end_time': None,
             'duration': None,
-            'sampling_frequency': current_sampling_freq,
+            'sampling_frequency': current_frequency,
             'mode': mode
         }
     }
@@ -1219,7 +1159,7 @@ def start_recording(mode: str, duration: int = None, start_time: str = None):
         
         # Set metadata
         recorded_data['metadata']['start_time'] = recording_start_time
-        recorded_data['metadata']['sampling_frequency'] = current_sampling_freq
+        recorded_data['metadata']['sampling_frequency'] = current_frequency
         recorded_data['metadata']['mode'] = mode
         
         print(f"Manual recording started immediately")
@@ -1256,7 +1196,7 @@ def start_recording(mode: str, duration: int = None, start_time: str = None):
                     
                     # Set metadata
                     recorded_data['metadata']['start_time'] = recording_start_time
-                    recorded_data['metadata']['sampling_frequency'] = current_sampling_freq
+                    recorded_data['metadata']['sampling_frequency'] = current_frequency
                     recorded_data['metadata']['mode'] = mode
                     
                     print(f"Interval recording started immediately (scheduled time has passed)")
@@ -1272,7 +1212,7 @@ def start_recording(mode: str, duration: int = None, start_time: str = None):
             
             # Set metadata
             recorded_data['metadata']['start_time'] = recording_start_time
-            recorded_data['metadata']['sampling_frequency'] = current_sampling_freq
+            recorded_data['metadata']['sampling_frequency'] = current_frequency
             recorded_data['metadata']['mode'] = mode
             
             print(f"Interval recording started immediately")
@@ -1322,7 +1262,7 @@ def add_to_recording(timestamp: float, lead_data: dict, derived_leads: dict, fil
             
             # Set metadata
             recorded_data['metadata']['start_time'] = recording_start_time
-            recorded_data['metadata']['sampling_frequency'] = current_sampling_freq
+            recorded_data['metadata']['sampling_frequency'] = current_frequency
             recorded_data['metadata']['mode'] = recording_mode
             
             print(f"Interval recording started after countdown")
@@ -1351,6 +1291,18 @@ def add_to_recording(timestamp: float, lead_data: dict, derived_leads: dict, fil
     for lead in ALL_LEADS:
         if lead in filtered_leads:
             recorded_data['filtered_leads'][lead].append(filtered_leads[lead])
+
+    # Add raw sample for raw export
+    if 'raw_samples' in plot_data and len(plot_data['raw_samples']) > 0:
+        # Find the latest sample for this timestamp
+        last_raw = plot_data['raw_samples'][-1]
+        if abs(last_raw['timestamp'] - timestamp) < 1e-3:  # match timestamp
+            recorded_data['raw_samples'].append(last_raw)
+        else:
+            # fallback: store timestamp and lead_data
+            recorded_data['raw_samples'].append({'timestamp': timestamp, 'lead_data': lead_data})
+    else:
+        recorded_data['raw_samples'].append({'timestamp': timestamp, 'lead_data': lead_data})
 
 def get_recording_status():
     """Get current recording status"""

@@ -1155,7 +1155,7 @@
             </div>
 
             <div class="plot-section">
-                <h3>📊 Real-Time ECG Signals (FIR Filtered)</h3>
+                <h3>📊 Real-Time ECG Signals (IIR Filtered)</h3>
                 <div id="plot-checkboxes" style="margin-bottom: 10px; text-align: center;">
                     <button id="show-all-btn" type="button" style="margin-right: 10px; padding: 5px 15px; border-radius: 8px; border: none; background: #667eea; color: white; font-weight: 600; cursor: pointer;">Show All</button>
                     <label style="margin-right: 10px;">Y-Scale:
@@ -1811,14 +1811,14 @@
                 document.getElementById('samplesReceived').textContent = status.samples_received || 0;
                 document.getElementById('bufferSize').textContent = `${status.buffer_size || 0} bytes`;
                 
-                // Update FIR filter status
-                const firStatusElement = document.getElementById('firFiltersStatus');
-                if (status.fir_filters_initialized) {
-                    firStatusElement.textContent = 'Initialized';
-                    firStatusElement.className = 'status-value status-connected';
+                // Update IIR filter status
+                const iirStatusElement = document.getElementById('firFiltersStatus');
+                if (status.iir_filters_initialized) {
+                    iirStatusElement.textContent = 'Initialized';
+                    iirStatusElement.className = 'status-value status-connected';
                 } else {
-                    firStatusElement.textContent = 'Not Initialized';
-                    firStatusElement.className = 'status-value status-disconnected';
+                    iirStatusElement.textContent = 'Not Initialized';
+                    iirStatusElement.className = 'status-value status-disconnected';
                 }
                 
                 // Update local variables

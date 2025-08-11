@@ -29,3 +29,19 @@ recordings
 
 # macOS
 .DS_Store
+
+@"
+# Python artifacts
+__pycache__/
+*.py[cod]
+
+# Virtual env
+venv/
+
+# VSCode
+.vscode/
+
+# OS files
+.DS_Store
+Thumbs.db
+"@ > .gitignore
